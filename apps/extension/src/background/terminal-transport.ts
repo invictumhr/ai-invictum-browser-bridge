@@ -222,7 +222,7 @@ export const startTerminalTransportCapture = async (
 
   const matchingRequestIds = (text: string): string[] =>
     [...channels.entries()]
-      .filter(([, channel]) => channel.sentRaw.includes(text) || channel.sentLogical.includes(text))
+      .filter(([, channel]) => channelCarriedDraft(channel.sentRaw, channel.sentLogical, text))
       .map(([requestId]) => requestId);
 
   return {
@@ -263,3 +263,41 @@ export const startTerminalTransportCapture = async (
     },
   };
 };
+
+/**
+ * How much protocol noise may sit between the characters of a draft before the
+ * match stops counting as evidence. WHM wraps each keystroke in its own frame,
+ * so the concatenated stream carries envelope characters between the letters we
+ * typed; a plain substring test therefore fails on exactly the drafts it should
+ * confirm. The span limit keeps the relaxed test from matching text that merely
+ * happens to contain the right letters somewhere far apart.
+ */
+const MAX_DRAFT_SPAN_FACTOR = 8;
+const MIN_DRAFT_SPAN_ALLOWANCE = 64;
+
+/**
+ * True when every character of `draft` appears in `stream`, in order, inside a
+ * bounded span. Stronger than "the letters are present somewhere" and weaker
+ * than a contiguous substring, which is what per-keystroke framing breaks.
+ */
+export const containsDraftInOrder = (stream: string, draft: string): boolean => {
+  if (draft.length === 0) return false;
+  if (stream.includes(draft)) return true;
+  const maxSpan = Math.max(MIN_DRAFT_SPAN_ALLOWANCE, draft.length * MAX_DRAFT_SPAN_FACTOR);
+  for (let start = stream.indexOf(draft[0]!); start !== -1;) {
+    let cursor = start;
+    let matched = 0;
+    while (cursor < stream.length && matched < draft.length) {
+      if (stream[cursor] === draft[matched]) matched += 1;
+      cursor += 1;
+      if (cursor - start > maxSpan) break;
+    }
+    if (matched === draft.length) return true;
+    start = stream.indexOf(draft[0]!, start + 1);
+  }
+  return false;
+};
+
+/** A channel carried the draft when either the raw or the decoded stream did. */
+export const channelCarriedDraft = (sentRaw: string, sentLogical: string, draft: string): boolean =>
+  containsDraftInOrder(sentRaw, draft) || containsDraftInOrder(sentLogical, draft);

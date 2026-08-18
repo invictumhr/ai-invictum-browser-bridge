@@ -626,6 +626,9 @@ const releaseTerminalFocus = async (tabId: number): Promise<void> => {
   await runProbe(tabId, "release_focus").catch(() => undefined);
 };
 
+/** CDP modifier mask: Alt 1, Ctrl 2, Meta 4, Shift 8. */
+const CTRL_MODIFIER = 2;
+
 const keyDefinition = (
   key: TerminalInputParameters["input"] extends infer T
     ? T extends { type: "key"; key: infer K }
@@ -981,9 +984,19 @@ export class ChromeTerminalAdapter {
         }
 
         if (parameters.input.submit && draftVerification === "unavailable") {
+          // The draft is already typed at this point. Leaving it on the line is
+          // not neutral: the next command is appended to it, so an unverified
+          // `nproc` followed by `free -m` runs as `nprocfree -m`. Clear the line
+          // with Ctrl+U before failing so the staged text cannot merge into a
+          // later command. Ctrl+U only discards input; it submits nothing.
+          const cleared = await dispatchKey(lease, keyDefinition("u"), CTRL_MODIFIER)
+            .then(() => true)
+            .catch(() => false);
           throw new ExtensionCommandError(
             IBP_ERROR_CODES.TERMINAL_DELIVERY_UNVERIFIED,
-            "The terminal draft could not be verified in xterm or its WebSocket transport; Enter was not sent. Inspect a bounded terminal screenshot before sending one separately authorized Enter key",
+            cleared
+              ? "The terminal draft could not be verified in xterm or its WebSocket transport; Enter was not sent and the staged line was cleared. Retype the command rather than sending a bare Enter"
+              : "The terminal draft could not be verified in xterm or its WebSocket transport; Enter was not sent and the staged line could NOT be cleared. Inspect a bounded terminal screenshot: the draft may still be on the line and would merge with the next command",
             false,
           );
         }
@@ -1011,7 +1024,7 @@ export class ChromeTerminalAdapter {
           terminal = await focusAndVerifyTerminal(parameters.tabId, terminal, true);
           const modifiers =
             (parameters.input.alt ? 1 : 0) |
-            (parameters.input.ctrl ? 2 : 0) |
+            (parameters.input.ctrl ? CTRL_MODIFIER : 0) |
             (parameters.input.meta ? 4 : 0) |
             (parameters.input.shift ? 8 : 0);
           await dispatchKey(lease, keyDefinition(parameters.input.key), modifiers);

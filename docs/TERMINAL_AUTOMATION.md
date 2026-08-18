@@ -363,3 +363,51 @@ pnpm --filter @invictum/integration-tests smoke:chrome:terminal
 Never use the live WHM terminal as a destructive smoke test. Detection and a
 small explicitly authorized read are sufficient until the user supplies an
 exact harmless command to run.
+
+## Draft verification over a framed transport
+
+Some vendor terminals, WHM among them, send every keystroke in its own
+WebSocket frame with a protocol envelope around it. The concatenated stream
+therefore never contains the typed command as a contiguous substring, and a
+plain substring test rejects exactly the drafts it should confirm.
+
+Matching accepts the draft when its characters appear **in order inside a
+bounded span** of one channel's stream. That tolerates envelope characters
+between keystrokes while still refusing text whose letters merely occur far
+apart, out of order, or not at all.
+
+Measured against WHM Terminal before and after this change, over the same
+command set: intermittent `TERMINAL_DELIVERY_UNVERIFIED` at roughly one in
+seven calls, rising to twelve consecutive failures, became 24 of 24 calls
+verified.
+
+## A withheld Enter used to leave the draft on the line
+
+`TERMINAL_DELIVERY_UNVERIFIED` means Enter was not sent. It did not mean the
+draft was gone: the text had already been typed and stayed on the line, so the
+**next** command was appended to it. An unverified `nproc` followed by
+`free -m` ran as `nprocfree -m`. Harmless there, dangerous with `rm`,
+`mv`, or a migration command.
+
+The adapter now sends Ctrl+U before failing, which discards the line without
+submitting anything, and says so in the error:
+
+- "...Enter was not sent and the staged line was cleared" - retype the command.
+- "...the staged line could NOT be cleared" - inspect a bounded terminal
+  screenshot before doing anything else; the draft may still be on the line.
+
+## Known gaps
+
+- **No exit code.** Results report `submitted`, `draftVerification`, and
+  `deliveryVerification`, but never the command's exit status. Success has to
+  be inferred from output. Appending `; echo $?` to the command is not an
+  option: R3 authorises one exact command string, and the adapter must send
+  that string and nothing else. A separate opt-in follow-up read is the honest
+  design and is not implemented yet.
+- **`bufferReadbackAvailable` is a precondition, not a probe.** It reports
+  that the debugger permission exists and the engine is xterm, not that the
+  buffer was actually readable. `columns` and `rows` are always `null` at
+  detection. Trust `source` on the first `read_terminal` instead.
+- **Terminals carry their own document identity.** The terminal probe mints a
+  `documentId` separate from the page snapshot's, so a screenshot of the same
+  tab reports a different `documentId`. Both are valid; do not compare them.

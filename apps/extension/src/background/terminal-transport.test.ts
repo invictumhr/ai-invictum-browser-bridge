@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ChromeDebuggerLease } from "./debugger-session.js";
-import { startTerminalTransportCapture } from "./terminal-transport.js";
+import {
+  channelCarriedDraft,
+  containsDraftInOrder,
+  startTerminalTransportCapture,
+} from "./terminal-transport.js";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -85,5 +89,49 @@ describe("terminal WebSocket transport capture", () => {
 
     await expect(capture!.findRequestIdForSentText("same-command", 0)).resolves.toBeUndefined();
     capture!.stop();
+  });
+});
+
+describe("draft matching over a framed transport", () => {
+  it("still accepts a contiguous draft", () => {
+    expect(containsDraftInOrder('{"t":"uptime"}', "uptime")).toBe(true);
+  });
+
+  it("accepts a draft split one keystroke per frame", () => {
+    // WHM sends each keystroke in its own envelope, so the concatenated stream
+    // never contains the command as a substring. This is the case that made
+    // terminal-exec fail intermittently with TERMINAL_DELIVERY_UNVERIFIED.
+    const framed = [..."uptime"].map((character) => `{"t":"${character}"}`).join("");
+    expect(framed.includes("uptime")).toBe(false);
+    expect(containsDraftInOrder(framed, "uptime")).toBe(true);
+  });
+
+  it("accepts a long command split across frames", () => {
+    const command = "ps aux --sort=-pcpu | head -12";
+    const framed = [...command].map((character) => `["${character}"]`).join("");
+    expect(containsDraftInOrder(framed, command)).toBe(true);
+  });
+
+  it("rejects letters scattered far apart", () => {
+    const scattered = `${"x".repeat(500)}u${"x".repeat(500)}p${"x".repeat(500)}time`;
+    expect(containsDraftInOrder(scattered, "uptime")).toBe(false);
+  });
+
+  it("rejects a draft that is not there at all", () => {
+    expect(containsDraftInOrder('{"t":"ls -la"}', "rm -rf /")).toBe(false);
+  });
+
+  it("rejects an out-of-order draft", () => {
+    expect(containsDraftInOrder('{"t":"emitpu"}', "uptime")).toBe(false);
+  });
+
+  it("never matches an empty draft", () => {
+    expect(containsDraftInOrder("anything", "")).toBe(false);
+  });
+
+  it("checks the raw stream and the decoded stream", () => {
+    expect(channelCarriedDraft('{"d":"id"}', "", "id")).toBe(true);
+    expect(channelCarriedDraft("", "id", "id")).toBe(true);
+    expect(channelCarriedDraft("", "", "id")).toBe(false);
   });
 });
