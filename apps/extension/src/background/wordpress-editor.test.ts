@@ -35,6 +35,7 @@ const snapshot = PageSnapshotSchema.parse({
     textLength: 0,
     truncated: false,
     truncationReasons: [],
+    hiddenSubtreesSkipped: 0,
     detail: "minimal",
   },
 });

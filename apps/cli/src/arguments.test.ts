@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { activationOverride, buildEnhancementArguments, buildWaitParameters } from "./arguments.js";
+import {
+  activationOverride,
+  buildEnhancementArguments,
+  buildWaitParameters,
+  unknownFlags,
+} from "./arguments.js";
 
 describe("CLI wait argument mapping", () => {
   it("builds a strict dom_stable condition without text-only keys", () => {
@@ -77,5 +82,25 @@ describe("CLI wait argument mapping", () => {
     );
     expect(() => buildEnhancementArguments(["--verify", "[]"])).toThrow(/JSON object/);
     expect(() => buildEnhancementArguments(["--idempotency-key"])).toThrow(/requires a value/);
+  });
+});
+
+describe("unknown CLI flags", () => {
+  it("names a flag the CLI does not support", () => {
+    // `call --out file.jpg` used to be dropped silently, which looked like the
+    // screenshot had been written to disk.
+    expect(unknownFlags(["call", "browser.screenshot", "--stdin", "--out", "page.jpg"])).toEqual([
+      "--out",
+    ]);
+  });
+
+  it("accepts every documented flag", () => {
+    expect(unknownFlags(["--pretty", "--dry-run", "--dom-delta", "--timings", "--stdin"])).toEqual(
+      [],
+    );
+  });
+
+  it("ignores positional arguments and values", () => {
+    expect(unknownFlags(["snapshot", "42", "outline", "--post-snapshot", "outline"])).toEqual([]);
   });
 });

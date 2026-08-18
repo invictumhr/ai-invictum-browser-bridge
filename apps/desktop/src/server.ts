@@ -53,6 +53,9 @@ import {
   BROWSER_NETWORK_ACTION,
   BROWSER_EMULATE_DEVICE_ACTION,
   BROWSER_PERFORM_GESTURE_ACTION,
+  BROWSER_GET_TERMINALS_ACTION,
+  BROWSER_READ_TERMINAL_ACTION,
+  BROWSER_TERMINAL_INPUT_ACTION,
   BROWSER_PRINT_TO_PDF_ACTION,
   BROWSER_PAGE_API_REQUEST_ACTION,
   ClickElementDataSchema,
@@ -90,6 +93,9 @@ import {
   createNetworkCaptureRequest,
   createDeviceEmulationRequest,
   createPerformGestureRequest,
+  createGetTerminalsRequest,
+  createReadTerminalRequest,
+  createTerminalInputRequest,
   createPrintToPdfRequest,
   createPageApiRequest,
   createPingRequest,
@@ -166,6 +172,12 @@ import {
   DeviceEmulationParametersSchema,
   PerformGestureDataSchema,
   PerformGestureParametersSchema,
+  GetTerminalsDataSchema,
+  GetTerminalsParametersSchema,
+  TerminalReadDataSchema,
+  ReadTerminalParametersSchema,
+  TerminalInputDataSchema,
+  TerminalInputParametersSchema,
   PrintToPdfDataSchema,
   PrintToPdfParametersSchema,
   PageApiRequestDataSchema,
@@ -282,11 +294,47 @@ import {
   type DeviceEmulationInput,
   type PerformGestureData,
   type PerformGestureInput,
+  type GetTerminalsData,
+  type GetTerminalsInput,
+  type TerminalReadData,
+  type ReadTerminalInput,
+  type TerminalInputData,
+  type TerminalInputInput,
   type PrintToPdfData,
   type PrintToPdfInput,
   type PageApiRequestData,
   type PageApiRequestInput,
   type JsonValue,
+  BROWSER_GET_FIGMA_DOCUMENT_ACTION,
+  BROWSER_GET_FIGMA_LAYERS_ACTION,
+  BROWSER_GET_FIGMA_PROPERTIES_ACTION,
+  BROWSER_FIGMA_SELECT_ACTION,
+  BROWSER_FIGMA_HEALTHCHECK_ACTION,
+  createGetFigmaDocumentRequest,
+  createGetFigmaLayersRequest,
+  createGetFigmaPropertiesRequest,
+  createFigmaSelectRequest,
+  createFigmaHealthcheckRequest,
+  GetFigmaDocumentParametersSchema,
+  GetFigmaLayersParametersSchema,
+  GetFigmaPropertiesParametersSchema,
+  FigmaSelectParametersSchema,
+  FigmaHealthcheckParametersSchema,
+  GetFigmaDocumentDataSchema,
+  GetFigmaLayersDataSchema,
+  GetFigmaPropertiesDataSchema,
+  FigmaSelectDataSchema,
+  FigmaHealthcheckDataSchema,
+  type GetFigmaDocumentParameters,
+  type GetFigmaLayersParameters,
+  type GetFigmaPropertiesParameters,
+  type FigmaSelectParameters,
+  type FigmaHealthcheckParameters,
+  type GetFigmaDocumentData,
+  type GetFigmaLayersData,
+  type GetFigmaPropertiesData,
+  type FigmaSelectData,
+  type FigmaHealthcheckData,
 } from "@invictum/protocol";
 import WebSocket, { WebSocketServer } from "ws";
 
@@ -1370,6 +1418,76 @@ export class DesktopBridgeServer {
     }
   }
 
+  public async getFigmaDocument(
+    context: BrowserOperationContext,
+    input: GetFigmaDocumentParameters,
+  ): Promise<GetFigmaDocumentData> {
+    const parameters = GetFigmaDocumentParametersSchema.parse(input);
+    return this.#runAdvancedAction(
+      context,
+      BROWSER_GET_FIGMA_DOCUMENT_ACTION,
+      createGetFigmaDocumentRequest(context.sessionId, parameters),
+      (value) => GetFigmaDocumentDataSchema.parse(value),
+      { tabId: parameters.tabId },
+    );
+  }
+
+  public async getFigmaLayers(
+    context: BrowserOperationContext,
+    input: GetFigmaLayersParameters,
+  ): Promise<GetFigmaLayersData> {
+    const parameters = GetFigmaLayersParametersSchema.parse(input);
+    return this.#runAdvancedAction(
+      context,
+      BROWSER_GET_FIGMA_LAYERS_ACTION,
+      createGetFigmaLayersRequest(context.sessionId, parameters),
+      (value) => GetFigmaLayersDataSchema.parse(value),
+      { tabId: parameters.tabId, maxRows: parameters.maxRows },
+    );
+  }
+
+  public async getFigmaProperties(
+    context: BrowserOperationContext,
+    input: GetFigmaPropertiesParameters,
+  ): Promise<GetFigmaPropertiesData> {
+    const parameters = GetFigmaPropertiesParametersSchema.parse(input);
+    return this.#runAdvancedAction(
+      context,
+      BROWSER_GET_FIGMA_PROPERTIES_ACTION,
+      createGetFigmaPropertiesRequest(context.sessionId, parameters),
+      (value) => GetFigmaPropertiesDataSchema.parse(value),
+      { tabId: parameters.tabId },
+    );
+  }
+
+  public async figmaSelect(
+    context: BrowserOperationContext,
+    input: FigmaSelectParameters,
+  ): Promise<FigmaSelectData> {
+    const parameters = FigmaSelectParametersSchema.parse(input);
+    return this.#runAdvancedAction(
+      context,
+      BROWSER_FIGMA_SELECT_ACTION,
+      createFigmaSelectRequest(context.sessionId, parameters),
+      (value) => FigmaSelectDataSchema.parse(value),
+      { tabId: parameters.tabId, targetType: parameters.target.type },
+    );
+  }
+
+  public async figmaHealthcheck(
+    context: BrowserOperationContext,
+    input: FigmaHealthcheckParameters,
+  ): Promise<FigmaHealthcheckData> {
+    const parameters = FigmaHealthcheckParametersSchema.parse(input);
+    return this.#runAdvancedAction(
+      context,
+      BROWSER_FIGMA_HEALTHCHECK_ACTION,
+      createFigmaHealthcheckRequest(context.sessionId, parameters),
+      (value) => FigmaHealthcheckDataSchema.parse(value),
+      { tabId: parameters.tabId },
+    );
+  }
+
   public async getWordPressMenu(
     context: BrowserOperationContext,
     input: GetWordPressMenuInput,
@@ -1996,6 +2114,79 @@ export class DesktopBridgeServer {
         ...("x" in parameters ? { x: parameters.x, y: parameters.y } : {}),
         ...("steps" in parameters ? { steps: parameters.steps } : {}),
       },
+    );
+  }
+
+  public async getTerminals(
+    context: BrowserOperationContext,
+    input: GetTerminalsInput,
+  ): Promise<GetTerminalsData> {
+    const parameters = GetTerminalsParametersSchema.parse(input);
+    return this.#runAdvancedAction(
+      context,
+      BROWSER_GET_TERMINALS_ACTION,
+      createGetTerminalsRequest(context.sessionId, parameters),
+      (value) => GetTerminalsDataSchema.parse(value),
+      { tabId: parameters.tabId },
+    );
+  }
+
+  public async readTerminal(
+    context: BrowserOperationContext,
+    input: ReadTerminalInput,
+  ): Promise<TerminalReadData> {
+    const parameters = ReadTerminalParametersSchema.parse(input);
+    return this.#runAdvancedAction(
+      context,
+      BROWSER_READ_TERMINAL_ACTION,
+      createReadTerminalRequest(context.sessionId, parameters),
+      (value) => TerminalReadDataSchema.parse(value),
+      {
+        tabId: parameters.tabId,
+        documentId: parameters.documentId,
+        domRevision: parameters.domRevision,
+        terminalId: parameters.terminalId,
+        maxLines: parameters.maxLines,
+        includeScrollback: parameters.includeScrollback,
+        waitType: parameters.waitFor?.type ?? "none",
+        authorizationSource: parameters.authorization.source,
+      },
+      parameters.authorization.instructionId,
+    );
+  }
+
+  public async terminalInput(
+    context: BrowserOperationContext,
+    input: TerminalInputInput,
+  ): Promise<TerminalInputData> {
+    const parameters = TerminalInputParametersSchema.parse(input);
+    const text = parameters.input.type === "text" ? parameters.input.text : undefined;
+    return this.#runAdvancedAction(
+      context,
+      BROWSER_TERMINAL_INPUT_ACTION,
+      createTerminalInputRequest(context.sessionId, parameters),
+      (value) => TerminalInputDataSchema.parse(value),
+      {
+        tabId: parameters.tabId,
+        documentId: parameters.documentId,
+        domRevision: parameters.domRevision,
+        terminalId: parameters.terminalId,
+        inputType: parameters.input.type,
+        textSha256: text === undefined ? null : createHash("sha256").update(text).digest("hex"),
+        textLength: text?.length ?? 0,
+        submitted:
+          parameters.input.type === "text"
+            ? parameters.input.submit
+            : parameters.input.key === "Enter",
+        key: parameters.input.type === "key" ? parameters.input.key : null,
+        ctrl: parameters.input.type === "key" ? parameters.input.ctrl : false,
+        alt: parameters.input.type === "key" ? parameters.input.alt : false,
+        meta: parameters.input.type === "key" ? parameters.input.meta : false,
+        shift: parameters.input.type === "key" ? parameters.input.shift : false,
+        waitType: parameters.waitFor?.type ?? "implicit_prompt_if_submitted",
+        authorizationSource: parameters.authorization.source,
+      },
+      parameters.authorization.instructionId,
     );
   }
 

@@ -67,6 +67,7 @@ const snapshot = (): PageSnapshot =>
       textLength: 42,
       truncated: false,
       truncationReasons: [],
+      hiddenSubtreesSkipped: 0,
       detail: "interactive",
     },
   }) as PageSnapshot;

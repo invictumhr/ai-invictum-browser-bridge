@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { TOP_FRAME_ID } from "./frames.js";
 
 import { IBP_ERROR_CODES } from "@invictum/protocol";
 
@@ -54,21 +55,29 @@ describe("TabControlIndicator", () => {
       tabId: 17,
       color: "#16a34a",
     });
-    expect(chromeMocks.sendMessage).toHaveBeenCalledWith(17, {
-      channel: CONTROL_CHANNEL,
-      command: "set_control_state",
-      state: "idle",
-    });
+    expect(chromeMocks.sendMessage).toHaveBeenCalledWith(
+      17,
+      {
+        channel: CONTROL_CHANNEL,
+        command: "set_control_state",
+        state: "idle",
+      },
+      { frameId: TOP_FRAME_ID },
+    );
     expect(chromeMocks.set).toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(CONTROL_LEASE_MS);
     expect(cleanupTab).toHaveBeenCalledWith(17);
     expect(chromeMocks.setBadgeText).toHaveBeenCalledWith({ tabId: 17, text: null });
-    expect(chromeMocks.sendMessage).toHaveBeenCalledWith(17, {
-      channel: CONTROL_CHANNEL,
-      command: "set_control_state",
-      state: "stopped",
-    });
+    expect(chromeMocks.sendMessage).toHaveBeenCalledWith(
+      17,
+      {
+        channel: CONTROL_CHANNEL,
+        command: "set_control_state",
+        state: "stopped",
+      },
+      { frameId: TOP_FRAME_ID },
+    );
   });
 
   it("persists a safe custom agent name across commands and release grace", async () => {
@@ -81,12 +90,16 @@ describe("TabControlIndicator", () => {
     await indicator.run(18, async () => "done");
     await indicator.unlock(18);
 
-    expect(chromeMocks.sendMessage).toHaveBeenLastCalledWith(18, {
-      channel: CONTROL_CHANNEL,
-      command: "set_control_state",
-      state: "idle",
-      agentName: "Codex",
-    });
+    expect(chromeMocks.sendMessage).toHaveBeenLastCalledWith(
+      18,
+      {
+        channel: CONTROL_CHANNEL,
+        command: "set_control_state",
+        state: "idle",
+        agentName: "Codex",
+      },
+      { frameId: TOP_FRAME_ID },
+    );
     expect(chromeMocks.setTitle).toHaveBeenLastCalledWith({
       tabId: 18,
       title: "Invictum: Codex is using this tab",
@@ -166,11 +179,15 @@ describe("TabControlIndicator", () => {
     await indicator.setConnectionState("error");
 
     expect(chromeMocks.setBadgeText).toHaveBeenCalledWith({ tabId: 33, text: "!" });
-    expect(chromeMocks.sendMessage).toHaveBeenCalledWith(33, {
-      channel: CONTROL_CHANNEL,
-      command: "set_control_state",
-      state: "disconnected",
-    });
+    expect(chromeMocks.sendMessage).toHaveBeenCalledWith(
+      33,
+      {
+        channel: CONTROL_CHANNEL,
+        command: "set_control_state",
+        state: "disconnected",
+      },
+      { frameId: TOP_FRAME_ID },
+    );
   });
 
   it("releases an agent reservation after a 20-second idempotent grace period", async () => {
@@ -192,11 +209,15 @@ describe("TabControlIndicator", () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(cleanupTab).toHaveBeenCalledWith(44);
     expect(chromeMocks.setBadgeText).toHaveBeenCalledWith({ tabId: 44, text: null });
-    expect(chromeMocks.sendMessage).toHaveBeenCalledWith(44, {
-      channel: CONTROL_CHANNEL,
-      command: "set_control_state",
-      state: "stopped",
-    });
+    expect(chromeMocks.sendMessage).toHaveBeenCalledWith(
+      44,
+      {
+        channel: CONTROL_CHANNEL,
+        command: "set_control_state",
+        state: "stopped",
+      },
+      { frameId: TOP_FRAME_ID },
+    );
   });
 
   it("cancels a pending release when a new command uses the tab", async () => {

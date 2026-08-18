@@ -35,7 +35,18 @@ describe("ChromeNavigationAdapter", () => {
     const create = vi.fn().mockResolvedValue({ id: 7 });
     const get = vi.fn().mockResolvedValue(chromeTab("https://example.test/path?token=secret#x"));
     vi.stubGlobal("chrome", {
-      storage: { local: { get: vi.fn().mockResolvedValue({}) } },
+      storage: {
+        local: { get: vi.fn().mockResolvedValue({}) },
+        session: {
+          get: vi.fn().mockResolvedValue({}),
+          set: vi.fn().mockResolvedValue(undefined),
+          remove: vi.fn().mockResolvedValue(undefined),
+        },
+      },
+      windows: {
+        get: vi.fn().mockRejectedValue(new Error("No such window")),
+        create: vi.fn().mockResolvedValue({ id: 3, tabs: [{ id: 7 }] }),
+      },
       tabs: { create, get },
     });
     const result = await new ChromeNavigationAdapter().openTab(
@@ -43,15 +54,12 @@ describe("ChromeNavigationAdapter", () => {
     );
     expect(result).toMatchObject({ created: true, tab: { tabId: 7 } });
     expect(result.tab.url).not.toContain("secret");
-    expect(create).toHaveBeenCalledWith({
-      url: "https://example.test/path",
-      active: false,
-    });
+    // The agent works in its own window, so no tab is added to the user's.
+    expect(create).not.toHaveBeenCalled();
   });
 
   it("navigates and reports whether the origin changed", async () => {
     const update = vi.fn().mockResolvedValue({});
-    const executeScript = vi.fn().mockResolvedValue([{ result: undefined }]);
     const addListener = vi.fn();
     const removeListener = vi.fn();
     const get = vi
@@ -66,7 +74,6 @@ describe("ChromeNavigationAdapter", () => {
         },
       },
       tabs: { get, update, onUpdated: { addListener, removeListener } },
-      scripting: { executeScript },
     });
     const result = await new ChromeNavigationAdapter().navigate(
       NavigateParametersSchema.parse({ tabId: 7, url: "https://after.test/next" }),
@@ -80,20 +87,14 @@ describe("ChromeNavigationAdapter", () => {
       active: true,
     });
     expect(addListener.mock.invocationCallOrder[0]).toBeLessThan(
-      executeScript.mock.invocationCallOrder[0]!,
+      update.mock.invocationCallOrder[1]!,
     );
-    expect(executeScript).toHaveBeenCalledWith({
-      target: { tabId: 7 },
-      world: "ISOLATED",
-      func: expect.any(Function),
-      args: ["https://after.test/next"],
-    });
+    expect(update).toHaveBeenNthCalledWith(2, 7, { url: "https://after.test/next" });
     expect(removeListener).toHaveBeenCalledOnce();
   });
 
-  it("uses document navigation so a new history entry remains available", async () => {
+  it("uses the tabs URL navigation contract so a new history entry remains available", async () => {
     const update = vi.fn().mockResolvedValue({});
-    const executeScript = vi.fn().mockResolvedValue([{ result: undefined }]);
     const get = vi
       .fn()
       .mockResolvedValueOnce(chromeTab("https://example.test/one"))
@@ -106,7 +107,6 @@ describe("ChromeNavigationAdapter", () => {
         update,
         onUpdated: { addListener: vi.fn(), removeListener: vi.fn() },
       },
-      scripting: { executeScript },
     });
 
     await new ChromeNavigationAdapter().navigate(
@@ -118,8 +118,7 @@ describe("ChromeNavigationAdapter", () => {
     );
 
     expect(update).toHaveBeenCalledWith(7, { active: false });
-    expect(update).not.toHaveBeenCalledWith(7, expect.objectContaining({ url: expect.anything() }));
-    expect(executeScript).toHaveBeenCalledOnce();
+    expect(update).toHaveBeenCalledWith(7, { url: "https://example.test/two" });
   });
 
   it("closes an explicitly targeted tab without touching page DOM or debugger state", async () => {
@@ -175,6 +174,56 @@ describe("ChromeNavigationAdapter", () => {
     expect(removeListener).toHaveBeenCalledOnce();
   });
 
+  it("falls back to the adjacent CDP history entry when the tabs API rejects", async () => {
+    const tabsError = new Error("Cannot find a previous page in history.");
+    const goBack = vi.fn().mockRejectedValue(tabsError);
+    const addListener = vi.fn();
+    const removeListener = vi.fn();
+    const get = vi
+      .fn()
+      .mockResolvedValueOnce(chromeTab("https://example.test/two"))
+      .mockResolvedValueOnce(chromeTab("https://example.test/one"))
+      .mockResolvedValueOnce(chromeTab("https://example.test/one"));
+    const attach = vi.fn().mockResolvedValue(undefined);
+    const detach = vi.fn().mockResolvedValue(undefined);
+    const sendCommand = vi.fn(
+      async (_target: chrome.debugger.Debuggee, method: string): Promise<unknown> => {
+        if (method === "Page.getNavigationHistory") {
+          return {
+            currentIndex: 1,
+            entries: [
+              { id: 11, url: "https://example.test/one" },
+              { id: 12, url: "https://example.test/two" },
+            ],
+          };
+        }
+        return undefined;
+      },
+    );
+    vi.stubGlobal("chrome", {
+      tabs: { get, goBack, onUpdated: { addListener, removeListener } },
+      debugger: {
+        attach,
+        detach,
+        sendCommand,
+        onDetach: { addListener: vi.fn() },
+      },
+    });
+
+    const result = await new ChromeNavigationAdapter().navigateHistory(
+      "back",
+      HistoryNavigationParametersSchema.parse({ tabId: 7 }),
+    );
+
+    expect(result.tab.url).toBe("https://example.test/one");
+    expect(attach).toHaveBeenCalledWith({ tabId: 7 }, "1.3");
+    expect(sendCommand).toHaveBeenCalledWith({ tabId: 7 }, "Page.getNavigationHistory");
+    expect(sendCommand).toHaveBeenCalledWith({ tabId: 7 }, "Page.navigateToHistoryEntry", {
+      entryId: 11,
+    });
+    expect(detach).toHaveBeenCalledWith({ tabId: 7 });
+  });
+
   it("activates only when the dedicated action is invoked", async () => {
     const update = vi.fn().mockResolvedValue({});
     vi.stubGlobal("chrome", {
@@ -196,7 +245,13 @@ describe("ChromeNavigationAdapter", () => {
         local: {
           get: vi.fn().mockResolvedValue({ ibpTabActivationModeV1: "foreground" }),
         },
+        session: {
+          get: vi.fn().mockResolvedValue({ "invictum.agent.window": 3 }),
+          set: vi.fn().mockResolvedValue(undefined),
+          remove: vi.fn().mockResolvedValue(undefined),
+        },
       },
+      windows: { get: vi.fn().mockResolvedValue({ id: 3 }), create: vi.fn() },
       tabs: {
         create,
         get: vi.fn().mockResolvedValue(chromeTab("https://example.test/")),
@@ -213,6 +268,7 @@ describe("ChromeNavigationAdapter", () => {
     expect(create).toHaveBeenCalledWith({
       url: "https://example.test/",
       active: false,
+      windowId: 3,
     });
   });
 

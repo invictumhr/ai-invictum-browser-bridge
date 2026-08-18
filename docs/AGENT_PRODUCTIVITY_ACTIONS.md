@@ -85,13 +85,29 @@ interaction, diagnostics, mobile emulation, PDF export, text extraction, or
 API calls. The user's toolbar setting remains the default for `open_tab` and
 `navigate` when `active` is omitted.
 
+For applications that genuinely delay rendering while backgrounded (observed
+in parts of Google Search Console, Cloudflare, and WHM/cPanel Terminal), first
+wait 20 seconds for a task-specific readiness condition. If and only if the
+expected renderer is still absent, activate once, wait up to 20 seconds again,
+then restore the user's previously active tab when it is still safe to do so.
+Never activate repeatedly, and never classify login, consent, challenge,
+permission, or error UI as a lazy-render timeout.
+
 Navigation completion is tied to the triggered load. The adapter installs its
 Chrome update listener before `navigate`, `go_back`, or `go_forward`, so an
 already-complete previous page cannot be mistaken for completion of the new
-history entry. Existing-tab navigation uses document-level `location.assign`
-instead of `chrome.tabs.update({url})`, preserving a real Back/Forward entry
-after an agent opens and then navigates a tab. Activation remains a separate
-setting and does not require foreground focus.
+history entry. Existing-tab navigation uses Chrome's official
+`chrome.tabs.update({url})` navigation contract. A 2026-08-17 live gate proved
+that isolated-world `location.assign` changed the document but did not leave a
+usable Chrome Back/Forward entry in the tested Chrome build. Activation remains
+a separate setting and does not require foreground focus.
+
+If Chrome's `tabs.goBack` or `tabs.goForward` promise rejects immediately, the
+adapter performs one bounded fallback through the existing shared debugger
+session: it reads `Page.getNavigationHistory` and targets only the adjacent
+entry with `Page.navigateToHistoryEntry`. The fallback does not run for a
+navigation-completion timeout, so a blocking `beforeunload` dialog still
+requires the explicitly armed dialog workflow. It never activates the tab.
 
 ## Same-origin page API
 

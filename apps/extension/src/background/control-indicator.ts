@@ -1,6 +1,7 @@
 import { AgentDisplayNameSchema, IBP_ERROR_CODES } from "@invictum/protocol";
 
 import { ExtensionCommandError } from "./command-error.js";
+import { TOP_FRAME_ID } from "./frames.js";
 
 export const CONTROL_CHANNEL = "invictum.browser.control.v1";
 
@@ -344,7 +345,7 @@ export class TabControlIndicator {
       ...(agentName === undefined ? {} : { agentName }),
     };
     try {
-      await chrome.tabs.sendMessage(tabId, message);
+      await chrome.tabs.sendMessage(tabId, message, { frameId: TOP_FRAME_ID });
     } catch {
       // The on-demand content script may not be installed yet.
     }

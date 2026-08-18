@@ -25,8 +25,10 @@ const SERVER_INSTRUCTIONS = [
   "When the user says 'use IBB', 'use IBG', 'use Invictum Browser Bridge', or 'use Invictum Browser Gate', use these invictum_* tools for the browser task instead of an unrelated browser automation surface.",
   "Start with invictum_ping and invictum_capabilities.",
   "For new tabs use invictum_open_tab and omit active unless the user genuinely needs the tab focused; background operation is the default.",
+  "For focus-gated applications such as parts of Google Search Console, Cloudflare, or WHM/cPanel Terminal, wait up to 20 seconds for task-specific readiness in the background; only on a genuine renderer timeout activate once, wait up to 20 seconds again, then restore the prior active user tab when safe. Never use a focus loop or misclassify login, consent, challenge, permission, or error UI as a lazy-render failure.",
   "Optionally call invictum_set_control_identity once per controlled tab with the current agent name.",
   "Prefer semantic snapshot/find/typed actions, use screenshots and coordinate clicks only as fallbacks, and never bypass bridge policy.",
+  "For WHM/cPanel or another xterm, use the dedicated terminal tools: detect first, read only with R2 authorization, send text/keys only with exact R3 authorization, and never retry uncertain input automatically.",
   "Before navigating away from a dirty WordPress or other form, use invictum_handle_beforeunload with navigateUrl and decision stay or leave so the native handler is armed before Chrome opens the dialog; never guess leave because it can discard changes.",
   "Always call invictum_unlock_tab in finally, or invictum_end_session once when the task is complete.",
 ].join(" ");
@@ -100,6 +102,43 @@ const AUTO_MARKS_SCHEMA = objectSchema({
   label: { enum: ["number", "name"], default: "number" },
   includeEditable: { type: "boolean", default: true },
 });
+
+const TERMINAL_REFERENCE_PROPERTIES = {
+  tabId: { type: "integer", minimum: 0 },
+  documentId: { type: "string", minLength: 1, maxLength: 128 },
+  domRevision: { type: "integer", minimum: 0 },
+  terminalId: { type: "string", minLength: 1, maxLength: 128 },
+};
+
+const EXPLICIT_AUTHORIZATION_SCHEMA = objectSchema(
+  {
+    source: { const: "explicit_user_instruction" },
+    instructionId: { type: "string", minLength: 1, maxLength: 256 },
+  },
+  ["source", "instructionId"],
+);
+
+const TERMINAL_WAIT_SCHEMA = {
+  oneOf: [
+    objectSchema(
+      {
+        type: { const: "text" },
+        value: { type: "string", minLength: 1, maxLength: 2000 },
+        match: { enum: ["contains", "exact"], default: "contains" },
+        caseSensitive: { type: "boolean", default: false },
+      },
+      ["type", "value"],
+    ),
+    objectSchema({ type: { const: "prompt" } }, ["type"]),
+    objectSchema(
+      {
+        type: { const: "quiet" },
+        stableMs: { type: "integer", minimum: 100, maximum: 10000, default: 500 },
+      },
+      ["type"],
+    ),
+  ],
+};
 
 const tools: readonly ToolDefinition[] = [
   {
@@ -198,7 +237,7 @@ const tools: readonly ToolDefinition[] = [
     name: "invictum_activate_tab",
     title: "Explicitly activate tab",
     description:
-      "Bring one existing tab to the foreground. Use only when the user asked to see/focus it or a trusted interaction genuinely requires activation; ordinary agent work must remain in the background.",
+      "Bring one existing tab to the foreground. Use only when the user asked to see/focus it, a trusted interaction genuinely requires activation, or a task-specific renderer is still absent after a 20-second background readiness wait. For lazy rendering, activate at most once and restore prior user focus when safe; ordinary agent work remains in the background.",
     action: "browser.activate_tab",
     inputSchema: objectSchema({ tabId: { type: "integer", minimum: 0 } }, ["tabId"]),
   },
@@ -1012,6 +1051,150 @@ const tools: readonly ToolDefinition[] = [
     ),
   },
   {
+    name: "invictum_detect_terminals",
+    title: "Detect browser terminals",
+    description:
+      "Detect xterm-compatible terminal widgets without reading their potentially sensitive output. Returns revision-bound terminal IDs, a document-coordinate screenshotRegion, and trusted-input/candidate-readback support; the first bounded read is authoritative and may still report source unavailable. Does not activate the tab.",
+    action: "browser.get_terminals",
+    inputSchema: objectSchema({ tabId: { type: "integer", minimum: 0 } }, ["tabId"]),
+  },
+  {
+    name: "invictum_read_terminal",
+    title: "Read terminal output",
+    description:
+      "Read explicitly authorized, bounded, redacted xterm output. Standalone reads use the native buffer or accessibility tree; a command action may additionally return a scoped websocket_stream captured only during that action. Can read only the visible buffer or bounded scrollback and optionally wait for text, a shell prompt, or a quiet interval. Terminal output may contain secrets, so never echo more than the task requires.",
+    action: "browser.read_terminal",
+    inputSchema: objectSchema(
+      {
+        ...TERMINAL_REFERENCE_PROPERTIES,
+        maxLines: { type: "integer", minimum: 1, maximum: 200, default: 80 },
+        includeScrollback: { type: "boolean", default: false },
+        waitFor: TERMINAL_WAIT_SCHEMA,
+        timeoutMs: { type: "integer", minimum: 100, maximum: 120000, default: 10000 },
+        pollIntervalMs: { type: "integer", minimum: 50, maximum: 2000, default: 200 },
+        authorization: EXPLICIT_AUTHORIZATION_SCHEMA,
+      },
+      ["tabId", "documentId", "domRevision", "terminalId", "authorization"],
+    ),
+  },
+  {
+    name: "invictum_wait_for_terminal",
+    title: "Wait for terminal state",
+    description:
+      "Read-only terminal wait for exact/contained text, the next shell prompt, or a quiet output interval. Uses the same bounded redacted readback as invictum_read_terminal.",
+    action: "browser.read_terminal",
+    inputSchema: objectSchema(
+      {
+        ...TERMINAL_REFERENCE_PROPERTIES,
+        waitFor: TERMINAL_WAIT_SCHEMA,
+        maxLines: { type: "integer", minimum: 1, maximum: 200, default: 80 },
+        includeScrollback: { type: "boolean", default: false },
+        timeoutMs: { type: "integer", minimum: 100, maximum: 120000, default: 15000 },
+        pollIntervalMs: { type: "integer", minimum: 50, maximum: 2000, default: 200 },
+        authorization: EXPLICIT_AUTHORIZATION_SCHEMA,
+      },
+      ["tabId", "documentId", "domRevision", "terminalId", "waitFor", "authorization"],
+    ),
+  },
+  {
+    name: "invictum_type_terminal",
+    title: "Type terminal draft",
+    description:
+      "Use Chrome trusted input to type printable text into one revision-bound terminal without Enter. Newlines and control characters are rejected. Inspect draftVerification and deliveryVerification: transport_observed means the exact draft reached one terminal WebSocket; unavailable still requires screenshot verification. This is an R3 terminal action and requires explicit authorization even though submit remains false.",
+    action: "browser.terminal_input",
+    inputSchema: objectSchema(
+      {
+        ...TERMINAL_REFERENCE_PROPERTIES,
+        text: { type: "string", minLength: 1, maxLength: 10000 },
+        waitFor: TERMINAL_WAIT_SCHEMA,
+        timeoutMs: { type: "integer", minimum: 100, maximum: 120000, default: 15000 },
+        pollIntervalMs: { type: "integer", minimum: 50, maximum: 2000, default: 200 },
+        maxOutputLines: { type: "integer", minimum: 1, maximum: 200, default: 80 },
+        authorization: EXPLICIT_AUTHORIZATION_SCHEMA,
+      },
+      ["tabId", "documentId", "domRevision", "terminalId", "text", "authorization"],
+    ),
+  },
+  {
+    name: "invictum_execute_terminal",
+    title: "Execute terminal command",
+    description:
+      "Stage one printable single-line terminal command with Chrome trusted input, verify the exact draft through native/accessibility readback or one unambiguous terminal WebSocket, then send Enter exactly once and wait for an explicit condition or the next prompt. If draft verification is unavailable, Enter is not sent and the agent must inspect a bounded screenshot before a separately authorized Enter. Requires explicit user authorization.",
+    action: "browser.terminal_input",
+    inputSchema: objectSchema(
+      {
+        ...TERMINAL_REFERENCE_PROPERTIES,
+        command: { type: "string", minLength: 1, maxLength: 10000 },
+        waitFor: TERMINAL_WAIT_SCHEMA,
+        timeoutMs: { type: "integer", minimum: 100, maximum: 120000, default: 15000 },
+        pollIntervalMs: { type: "integer", minimum: 50, maximum: 2000, default: 200 },
+        maxOutputLines: { type: "integer", minimum: 1, maximum: 200, default: 80 },
+        authorization: EXPLICIT_AUTHORIZATION_SCHEMA,
+      },
+      ["tabId", "documentId", "domRevision", "terminalId", "command", "authorization"],
+    ),
+  },
+  {
+    name: "invictum_send_terminal_key",
+    title: "Send terminal key",
+    description:
+      "Send one trusted terminal special key or bounded Ctrl/Alt/Meta/Shift combination. Enter may execute a draft; Ctrl+C/Ctrl+D may alter a remote process, so exact explicit authorization is mandatory. deliveryVerification is not_requested unless a wait condition applies.",
+    action: "browser.terminal_input",
+    inputSchema: objectSchema(
+      {
+        ...TERMINAL_REFERENCE_PROPERTIES,
+        key: {
+          enum: [
+            "Enter",
+            "Tab",
+            "Escape",
+            "Backspace",
+            "Delete",
+            "ArrowUp",
+            "ArrowDown",
+            "ArrowLeft",
+            "ArrowRight",
+            "Home",
+            "End",
+            "PageUp",
+            "PageDown",
+            "Insert",
+            "F1",
+            "F2",
+            "F3",
+            "F4",
+            "F5",
+            "F6",
+            "F7",
+            "F8",
+            "F9",
+            "F10",
+            "F11",
+            "F12",
+            "a",
+            "c",
+            "d",
+            "l",
+            "r",
+            "u",
+            "w",
+            "z",
+          ],
+        },
+        ctrl: { type: "boolean", default: false },
+        alt: { type: "boolean", default: false },
+        meta: { type: "boolean", default: false },
+        shift: { type: "boolean", default: false },
+        waitFor: TERMINAL_WAIT_SCHEMA,
+        timeoutMs: { type: "integer", minimum: 100, maximum: 120000, default: 15000 },
+        pollIntervalMs: { type: "integer", minimum: 50, maximum: 2000, default: 200 },
+        maxOutputLines: { type: "integer", minimum: 1, maximum: 200, default: 80 },
+        authorization: EXPLICIT_AUTHORIZATION_SCHEMA,
+      },
+      ["tabId", "documentId", "domRevision", "terminalId", "key", "authorization"],
+    ),
+  },
+  {
     name: "invictum_print_to_pdf",
     title: "Export page as PDF",
     description:
@@ -1033,6 +1216,62 @@ const tools: readonly ToolDefinition[] = [
       },
       ["tabId"],
     ),
+  },
+  {
+    name: "invictum_get_figma_document",
+    title: "Read Figma document",
+    description:
+      "Read an open Figma design file: file name, current mode, the page list, and the current selection. Figma paints the design surface into a canvas but keeps this chrome in DOM, so start here before layers or properties.",
+    action: "browser.get_figma_document",
+    inputSchema: objectSchema({ tabId: { type: "integer", minimum: 0 } }, ["tabId"]),
+  },
+  {
+    name: "invictum_get_figma_layers",
+    title: "Read Figma layers",
+    description:
+      "Read the layer rows Figma has rendered for the current page, with depth, expansion, and selection. The panel is virtualised, so renderedOnly is always true and truncated reports that more rows exist than were returned; scroll or select to reach the rest.",
+    action: "browser.get_figma_layers",
+    inputSchema: objectSchema(
+      {
+        tabId: { type: "integer", minimum: 0 },
+        maxRows: { type: "integer", minimum: 1, maximum: 1000, default: 300 },
+      },
+      ["tabId"],
+    ),
+  },
+  {
+    name: "invictum_get_figma_properties",
+    title: "Read Figma selection properties",
+    description:
+      "Read the inspector properties of the current Figma selection. In Dev Mode the result carries Figma's own CSS with source dev_mode_inspect; otherwise values are reassembled from the design panel and reconstructed is true, which means they may differ from Figma's CSS.",
+    action: "browser.get_figma_properties",
+    inputSchema: objectSchema({ tabId: { type: "integer", minimum: 0 } }, ["tabId"]),
+  },
+  {
+    name: "invictum_figma_select",
+    title: "Change Figma page, mode, or layer",
+    description:
+      "Switch the Figma page, switch between design and dev mode, or select a layer, by driving Figma's own controls. This changes the live document selection, which collaborators in the file can see.",
+    action: "browser.figma_select",
+    inputSchema: objectSchema(
+      {
+        tabId: { type: "integer", minimum: 0 },
+        target: {
+          type: "object",
+          description:
+            "One of { type: 'page', name }, { type: 'layer', layerId } from invictum_get_figma_layers, or { type: 'mode', mode: 'design' | 'dev' }.",
+        },
+      },
+      ["tabId", "target"],
+    ),
+  },
+  {
+    name: "invictum_figma_healthcheck",
+    title: "Verify Figma UI anchors",
+    description:
+      "Check that every Figma UI anchor the adapter depends on still resolves. Run it after a Figma release or when a Figma tool returns unexpectedly empty results, to tell a changed Figma UI apart from an empty document.",
+    action: "browser.figma_healthcheck",
+    inputSchema: objectSchema({ tabId: { type: "integer", minimum: 0 } }, ["tabId"]),
   },
   {
     name: "invictum_get_wordpress_menu",
@@ -2017,10 +2256,10 @@ const callWithSafeRelocation = async (
       tabId,
       documentId: snapshot["metadata"]["documentId"],
       domRevision: snapshot["metadata"]["domRevision"],
-      role: previous.role,
-      name: previous.name,
-      tag: previous.tag,
-      frameId: previous.frameId,
+      ...(previous.role.length === 0 || previous.role === "generic" ? {} : { role: previous.role }),
+      ...(previous.name.length === 0 ? {} : { name: previous.name }),
+      ...(previous.tag.length === 0 ? {} : { tag: previous.tag }),
+      ...(previous.frameId.length === 0 ? {} : { frameId: previous.frameId }),
       ...(previous.css === undefined ? {} : { css: previous.css }),
       matchMode: "exact",
       maxResults: 2,
@@ -2132,7 +2371,7 @@ const semanticDelta = (
   };
 };
 
-const redactedPreviewValue = (key: string, value: unknown, depth = 0): unknown => {
+export const redactedPreviewValue = (key: string, value: unknown, depth = 0): unknown => {
   if (depth > 5) return "[bounded]";
   if (
     /password|passwd|secret|token|credential|cookie|authorization|body|code|source|username|otp|one.?time|pin|card|cvv|text/iu.test(
@@ -2658,6 +2897,51 @@ const callTool = async (
           : data,
       );
     }
+    if (
+      name === "invictum_type_terminal" ||
+      name === "invictum_execute_terminal" ||
+      name === "invictum_send_terminal_key"
+    ) {
+      const terminalParameters: Record<string, unknown> = {};
+      for (const key of [
+        "tabId",
+        "documentId",
+        "domRevision",
+        "terminalId",
+        "waitFor",
+        "timeoutMs",
+        "pollIntervalMs",
+        "maxOutputLines",
+        "authorization",
+        "idempotencyKey",
+        "dryRun",
+        "timings",
+      ] as const) {
+        if (argumentsObject[key] !== undefined) terminalParameters[key] = argumentsObject[key];
+      }
+      if (name === "invictum_send_terminal_key") {
+        terminalParameters["input"] = {
+          type: "key",
+          key: argumentsObject["key"],
+          ctrl: argumentsObject["ctrl"] ?? false,
+          alt: argumentsObject["alt"] ?? false,
+          meta: argumentsObject["meta"] ?? false,
+          shift: argumentsObject["shift"] ?? false,
+        };
+      } else {
+        terminalParameters["input"] = {
+          type: "text",
+          text:
+            name === "invictum_execute_terminal"
+              ? argumentsObject["command"]
+              : argumentsObject["text"],
+          submit: name === "invictum_execute_terminal",
+        };
+      }
+      return toolResult(
+        await applyActionEnhancements("browser.terminal_input", terminalParameters),
+      );
+    }
     const tool = tools.find((candidate) => candidate.name === name);
     if (tool?.action === undefined) throw new Error(`Unknown Invictum MCP tool: ${name}`);
     return toolResult(await applyActionEnhancements(tool.action, argumentsObject));
@@ -2724,6 +3008,12 @@ const prompts = [
     description:
       "Capture console/network data only for the diagnostic window and stop debugger-backed capture in finally.",
   },
+  {
+    name: "browser-terminal",
+    title: "Authorized browser terminal task",
+    description:
+      "Detect and read an xterm conservatively, execute only the exact authorized command once, verify changed output, and use one foreground renderer wake-up only after a 20-second background timeout. Never retry uncertain input.",
+  },
 ] as const;
 
 const promptText = (name: string): string => {
@@ -2745,11 +3035,22 @@ const promptText = (name: string): string => {
       "If the page becomes dirty before navigation, handle beforeunload explicitly. Unlock in finally.",
     ].join(" ");
   }
+  if (name === "browser-terminal") {
+    return [
+      "Use the dedicated Invictum terminal tools; never target the hidden xterm textarea with ordinary form typing or raw JavaScript.",
+      "Detect terminals first and retain exactly one fresh documentId/domRevision/terminalId reference.",
+      "Treat readback as R2 and every text/key input as R3; execute only the exact command explicitly authorized by the user.",
+      "Keep the tab in the background and wait up to 20 seconds for xterm initialization. If the xterm root is still absent, activate once as a renderer wake-up, wait up to 20 seconds again, and restore prior user focus when safe.",
+      "Use a small output window and verify changed output plus a prompt/text/quiet condition.",
+      "On timeout or uncertain delivery, inspect without automatically resending the command. Unlock in finally.",
+    ].join(" ");
+  }
   if (name === "safe-web-task") {
     return [
       "Use Invictum Browser Bridge for this browser task.",
       "Call invictum_ping and invictum_capabilities first.",
       "Open a background tab unless foreground focus is essential.",
+      "If the expected renderer is absent after 20 seconds, activate once as a wake-up, wait up to 20 seconds again, and restore prior user focus when safe; never use a focus loop.",
       "Set the control identity once, use snapshot/find and typed actions, attach postSnapshot or verify to mutations when useful, and use idempotencyKey for operations that must never repeat.",
       "Use dryRun before destructive R2/R3 actions. Never invent authorization.",
       "Always call invictum_unlock_tab in finally, or invictum_end_session at task completion.",

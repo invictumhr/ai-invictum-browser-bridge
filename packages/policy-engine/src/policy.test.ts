@@ -40,6 +40,9 @@ import {
   BROWSER_WORDPRESS_LIST_TABLE_ACTION,
   BROWSER_GET_WORDPRESS_EDITOR_ACTION,
   BROWSER_EDIT_WORDPRESS_EDITOR_ACTION,
+  BROWSER_GET_TERMINALS_ACTION,
+  BROWSER_READ_TERMINAL_ACTION,
+  BROWSER_TERMINAL_INPUT_ACTION,
   IBP_ERROR_CODES,
 } from "@invictum/protocol";
 import { describe, expect, it } from "vitest";
@@ -274,6 +277,29 @@ describe("DefaultPolicyEngine", () => {
     expect(
       policy.evaluate({ action: BROWSER_PRINT_TO_PDF_ACTION, sessionAuthorized: true }),
     ).toMatchObject({ outcome: "allow", riskLevel: "R0" });
+    expect(
+      policy.evaluate({ action: BROWSER_GET_TERMINALS_ACTION, sessionAuthorized: true }),
+    ).toMatchObject({ outcome: "allow", riskLevel: "R0" });
+    expect(
+      policy.evaluate({ action: BROWSER_READ_TERMINAL_ACTION, sessionAuthorized: true }),
+    ).toMatchObject({ outcome: "confirm", riskLevel: "R2" });
+    expect(
+      policy.evaluate({
+        action: BROWSER_READ_TERMINAL_ACTION,
+        sessionAuthorized: true,
+        explicitUserAuthorization: true,
+      }),
+    ).toMatchObject({ outcome: "allow", riskLevel: "R2" });
+    expect(
+      policy.evaluate({ action: BROWSER_TERMINAL_INPUT_ACTION, sessionAuthorized: true }),
+    ).toMatchObject({ outcome: "confirm", riskLevel: "R3" });
+    expect(
+      policy.evaluate({
+        action: BROWSER_TERMINAL_INPUT_ACTION,
+        sessionAuthorized: true,
+        explicitUserAuthorization: true,
+      }),
+    ).toMatchObject({ outcome: "allow", riskLevel: "R3" });
     expect(
       policy.evaluate({ action: BROWSER_PAGE_API_REQUEST_ACTION, sessionAuthorized: true }),
     ).toMatchObject({ outcome: "confirm", riskLevel: "R3" });

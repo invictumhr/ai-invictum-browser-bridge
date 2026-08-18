@@ -62,6 +62,36 @@ function Get-LoopbackListenerProcessId {
     return $null
 }
 
+function Test-ProjectAuthorityRuntimeIsNewer {
+    $authorityProcessId = Get-LoopbackListenerProcessId -Port 47820
+    if ($null -eq $authorityProcessId) {
+        return $false
+    }
+
+    $authorityProcess = Get-Process -Id $authorityProcessId -ErrorAction SilentlyContinue
+    if ($null -eq $authorityProcess) {
+        return $false
+    }
+
+    $runtimeDirectories = @(
+        "apps\desktop\dist",
+        "packages\audit-log\dist",
+        "packages\policy-engine\dist",
+        "packages\protocol\dist",
+        "packages\shared-types\dist"
+    ) | ForEach-Object { Join-Path $repositoryRoot $_ }
+    $latestRuntimeArtifact = $runtimeDirectories |
+        Where-Object { Test-Path -LiteralPath $_ } |
+        ForEach-Object { Get-ChildItem -LiteralPath $_ -File -Recurse } |
+        Sort-Object LastWriteTimeUtc -Descending |
+        Select-Object -First 1
+    if ($null -eq $latestRuntimeArtifact) {
+        return $false
+    }
+
+    return $authorityProcess.StartTime.ToUniversalTime() -lt $latestRuntimeArtifact.LastWriteTimeUtc
+}
+
 function Restart-StaleProjectAuthority {
     $authorityProcessId = Get-LoopbackListenerProcessId -Port 47820
     if ($null -eq $authorityProcessId) {
@@ -131,6 +161,15 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "Invictum browser ping failed"
     }
+    if (Test-ProjectAuthorityRuntimeIsNewer) {
+        if (-not (Restart-StaleProjectAuthority)) {
+            throw "The Desktop Authority runtime is stale but no listener was available to restart"
+        }
+        & pnpm browser ping | Out-Host
+        if ($LASTEXITCODE -ne 0) {
+            throw "Invictum browser ping failed after refreshing the Desktop Authority runtime"
+        }
+    }
 
     $context = @{
         sessionId = "post-reload-verification"
@@ -154,6 +193,11 @@ try {
 
     $actions = @($capabilityResponse.data.actions.action)
     $requiredActions = @(
+        "browser.get_figma_document",
+        "browser.get_figma_layers",
+        "browser.get_figma_properties",
+        "browser.figma_select",
+        "browser.figma_healthcheck",
         "browser.close_tab",
         "browser.set_file_input_files",
         "browser.get_wordpress_menu",
@@ -171,6 +215,9 @@ try {
         "browser.network",
         "browser.emulate_device",
         "browser.perform_gesture",
+        "browser.get_terminals",
+        "browser.read_terminal",
+        "browser.terminal_input",
         "browser.print_to_pdf",
         "browser.get_page_text",
         "browser.find_natural_language",
@@ -181,7 +228,7 @@ try {
         "browser.set_control_identity"
     )
     $missingActions = @($requiredActions | Where-Object { $actions -notcontains $_ })
-    if ($actions.Count -ne 46 -or $missingActions.Count -gt 0) {
+    if ($actions.Count -ne 54 -or $missingActions.Count -gt 0) {
         if (Restart-StaleProjectAuthority) {
             & pnpm browser ping | Out-Host
             if ($LASTEXITCODE -ne 0) {
@@ -191,8 +238,8 @@ try {
             $actions = @($capabilityResponse.data.actions.action)
             $missingActions = @($requiredActions | Where-Object { $actions -notcontains $_ })
         }
-        if ($actions.Count -ne 46 -or $missingActions.Count -gt 0) {
-            throw "Reloaded extension does not expose the expected 46 actions. Missing: $($missingActions -join ', ')"
+        if ($actions.Count -ne 54 -or $missingActions.Count -gt 0) {
+            throw "Reloaded extension does not expose the expected 54 actions. Missing: $($missingActions -join ', ')"
         }
     }
     if ($capabilityResponse.data.features.localFileUpload -ne $true) {
@@ -207,7 +254,7 @@ try {
     if ($capabilityResponse.data.features.wordpressPostEditing -ne $true) {
         throw "Reloaded extension does not advertise wordpressPostEditing"
     }
-    foreach ($feature in @("elementInspection", "domMutation", "cssInjection", "eventCapture", "browserConsole", "networkCapture", "deviceEmulation", "advancedGestures", "pageText", "naturalLanguageFind", "historyNavigation", "explicitTabActivation", "sameOriginPageApi", "agentBatching", "pdfExport", "rawJavaScript")) {
+    foreach ($feature in @("elementInspection", "domMutation", "cssInjection", "eventCapture", "browserConsole", "networkCapture", "deviceEmulation", "advancedGestures", "pageText", "naturalLanguageFind", "historyNavigation", "explicitTabActivation", "sameOriginPageApi", "agentBatching", "pdfExport", "rawJavaScript", "terminalAutomation", "trustedTerminalInput", "terminalBufferReadback", "terminalTransportReadback")) {
         if ($capabilityResponse.data.features.$feature -ne $true) {
             throw "Reloaded extension does not advertise $feature"
         }
@@ -230,6 +277,11 @@ try {
     $mcpSource = Get-Content -LiteralPath $mcpEntry -Raw
     $mcpToolMatches = [regex]::Matches($mcpSource, 'name:\s*"invictum_[a-z_]+"')
     $requiredMcpTools = @(
+        "invictum_get_figma_document",
+        "invictum_get_figma_layers",
+        "invictum_get_figma_properties",
+        "invictum_figma_select",
+        "invictum_figma_healthcheck",
         "invictum_network",
         "invictum_perform_gesture",
         "invictum_print_to_pdf",
@@ -239,11 +291,17 @@ try {
         "invictum_go_forward",
         "invictum_activate_tab",
         "invictum_page_api_request",
+        "invictum_detect_terminals",
+        "invictum_read_terminal",
+        "invictum_wait_for_terminal",
+        "invictum_type_terminal",
+        "invictum_execute_terminal",
+        "invictum_send_terminal_key",
         "invictum_batch"
     )
     $missingMcpTools = @($requiredMcpTools | Where-Object { $mcpSource -notmatch [regex]::Escape("name: `"$_`"") })
-    if ($mcpToolMatches.Count -ne 50 -or $missingMcpTools.Count -gt 0) {
-        throw "Built MCP server does not expose the expected 50 tools. Missing: $($missingMcpTools -join ', ')"
+    if ($mcpToolMatches.Count -ne 61 -or $missingMcpTools.Count -gt 0) {
+        throw "Built MCP server does not expose the expected 61 tools. Missing: $($missingMcpTools -join ', ')"
     }
 
     $fixturePort = 47822
@@ -259,6 +317,15 @@ try {
             $fixture.Content.Contains("update-nav-menu") -and
             $fixture.Content.Contains("posts-list") -and
             $fixture.Content.Contains("wordpressEditorState")
+        if ($fixtureReady) {
+            $terminalFixture = Invoke-WebRequest `
+                -Uri "http://127.0.0.1:$fixturePort/xterm-terminal" `
+                -UseBasicParsing `
+                -TimeoutSec 3
+            $fixtureReady = $terminalFixture.StatusCode -eq 200 -and
+                $terminalFixture.Content.Contains("xterm-helper-textarea") -and
+                $terminalFixture.Content.Contains("fixtureTerminal")
+        }
     }
     catch {
         $fixtureReady = $false
@@ -289,6 +356,15 @@ try {
                     $fixture.Content.Contains("handleFixtureDropdownClick") -and
                     $fixture.Content.Contains("posts-list") -and
                     $fixture.Content.Contains("wordpressEditorState")
+                if ($fixtureReady) {
+                    $terminalFixture = Invoke-WebRequest `
+                        -Uri "http://127.0.0.1:$fixturePort/xterm-terminal" `
+                        -UseBasicParsing `
+                        -TimeoutSec 2
+                    $fixtureReady = $terminalFixture.StatusCode -eq 200 -and
+                        $terminalFixture.Content.Contains("xterm-helper-textarea") -and
+                        $terminalFixture.Content.Contains("fixtureTerminal")
+                }
             }
             catch {
                 $fixtureReady = $false
@@ -306,6 +382,11 @@ try {
     & pnpm --filter "@invictum/integration-tests" smoke:chrome:kitchen-sink
     if ($LASTEXITCODE -ne 0) {
         throw "Real-Chrome kitchen-sink smoke failed"
+    }
+    $env:INVICTUM_TERMINAL_FIXTURE_URL = "http://127.0.0.1:$fixturePort/xterm-terminal"
+    & pnpm --filter "@invictum/integration-tests" smoke:chrome:terminal
+    if ($LASTEXITCODE -ne 0) {
+        throw "Real-Chrome terminal smoke failed"
     }
 }
 finally {

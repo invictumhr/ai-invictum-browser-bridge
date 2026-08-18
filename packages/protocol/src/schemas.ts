@@ -169,6 +169,8 @@ export const SystemCapabilitiesDataSchema = z
     features: z
       .object({
         persistentHttpHostAccess: z.boolean(),
+        figmaDesignFiles: z.literal(true),
+        agentWindow: z.literal(true),
         semanticSnapshots: z.literal(true),
         scopedSnapshots: z.literal(true),
         compactSnapshots: z.literal(true),
@@ -204,6 +206,10 @@ export const SystemCapabilitiesDataSchema = z
         rawJavaScript: z.literal(true),
         customControlIdentity: z.literal(true),
         configurableTabActivation: z.literal(true),
+        terminalAutomation: z.literal(true),
+        trustedTerminalInput: z.literal(true),
+        terminalBufferReadback: z.literal(true),
+        terminalTransportReadback: z.literal(true),
         userStop: z.literal(true),
       })
       .strict(),
@@ -433,7 +439,7 @@ export const GetPageSnapshotParametersSchema = z
     detail: SnapshotDetailSchema.default("interactive"),
     includeHidden: z.boolean().default(false),
     maxElements: z.number().int().min(1).max(5_000).default(1_000),
-    maxDepth: z.number().int().min(1).max(64).default(32),
+    maxDepth: z.number().int().min(1).max(64).default(64),
     maxTextLength: z.number().int().min(1_000).max(200_000).default(50_000),
     scope: z
       .object({
@@ -597,6 +603,7 @@ export const PageSnapshotSchema = z
         textLength: z.number().int().nonnegative().max(200_000),
         truncated: z.boolean(),
         truncationReasons: z.array(TruncationReasonSchema).max(4).default([]),
+        hiddenSubtreesSkipped: z.number().int().nonnegative().max(1_000_000).default(0),
         detail: SnapshotDetailSchema,
       })
       .strict(),
@@ -2520,6 +2527,231 @@ export const PerformGestureDataSchema = z
   })
   .strict();
 
+export const TerminalDescriptorSchema = z
+  .object({
+    terminalId: z.string().min(1).max(128),
+    engine: z.enum(["xterm", "dom"]),
+    renderer: z.enum(["canvas", "dom", "unknown"]),
+    documentId: z.string().min(1).max(128),
+    domRevision: z.number().int().nonnegative(),
+    index: z.number().int().nonnegative().max(31),
+    focused: z.boolean(),
+    inputAvailable: z.boolean(),
+    trustedInputAvailable: z.boolean(),
+    bufferReadbackAvailable: z.boolean(),
+    screenshotRegion: z
+      .object({
+        x: z.number().nonnegative().finite().max(100_000),
+        y: z.number().nonnegative().finite().max(100_000),
+        width: z.number().positive().finite().max(100_000),
+        height: z.number().positive().finite().max(100_000),
+        coordinateSpace: z.literal("document"),
+      })
+      .strict()
+      .nullable(),
+    columns: z.number().int().positive().max(1_000).nullable(),
+    rows: z.number().int().positive().max(1_000).nullable(),
+  })
+  .strict();
+
+export const GetTerminalsParametersSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+  })
+  .strict();
+
+export const GetTerminalsDataSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    origin: z.string().min(1).max(2_048),
+    documentId: z.string().min(1).max(128),
+    domRevision: z.number().int().nonnegative(),
+    terminals: z.array(TerminalDescriptorSchema).max(32),
+    count: z.number().int().nonnegative().max(32),
+  })
+  .strict()
+  .refine((value) => value.count === value.terminals.length, {
+    message: "count must match terminals length",
+    path: ["count"],
+  });
+
+export const TerminalWaitConditionSchema = z.discriminatedUnion("type", [
+  z
+    .object({
+      type: z.literal("text"),
+      value: z.string().min(1).max(2_000),
+      match: z.enum(["contains", "exact"]).default("contains"),
+      caseSensitive: z.boolean().default(false),
+    })
+    .strict(),
+  z.object({ type: z.literal("prompt") }).strict(),
+  z
+    .object({
+      type: z.literal("quiet"),
+      stableMs: z.number().int().min(100).max(10_000).default(500),
+    })
+    .strict(),
+]);
+
+const TerminalReferenceShape = {
+  tabId: z.number().int().nonnegative(),
+  documentId: z.string().min(1).max(128),
+  domRevision: z.number().int().nonnegative(),
+  terminalId: z.string().min(1).max(128),
+};
+
+export const ReadTerminalParametersSchema = z
+  .object({
+    ...TerminalReferenceShape,
+    maxLines: z.number().int().min(1).max(200).default(80),
+    includeScrollback: z.boolean().default(false),
+    waitFor: TerminalWaitConditionSchema.optional(),
+    timeoutMs: z.number().int().min(100).max(120_000).default(10_000),
+    pollIntervalMs: z.number().int().min(50).max(2_000).default(200),
+    authorization: ExplicitUserAuthorizationSchema,
+  })
+  .strict();
+
+export const TerminalReadDataSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    origin: z.string().min(1).max(2_048),
+    documentId: z.string().min(1).max(128),
+    domRevision: z.number().int().nonnegative(),
+    terminalId: z.string().min(1).max(128),
+    source: z.enum([
+      "xterm_buffer",
+      "websocket_stream",
+      "accessibility_dom",
+      "dom_fallback",
+      "unavailable",
+    ]),
+    buffer: z.enum(["normal", "alternate", "unknown"]),
+    columns: z.number().int().positive().max(1_000).nullable(),
+    rows: z.number().int().positive().max(1_000).nullable(),
+    cursor: z
+      .object({
+        x: z.number().int().nonnegative().max(1_000),
+        y: z.number().int().nonnegative().max(1_000),
+      })
+      .strict()
+      .nullable(),
+    lines: z.array(z.string().max(4_000)).max(200),
+    text: z.string().max(100_000),
+    lineCount: z.number().int().nonnegative().max(200),
+    truncated: z.boolean(),
+    redactionsApplied: z.number().int().nonnegative(),
+    matched: z.boolean(),
+    timedOut: z.boolean(),
+  })
+  .strict()
+  .refine((value) => value.lineCount === value.lines.length, {
+    message: "lineCount must match lines length",
+    path: ["lineCount"],
+  });
+
+const TerminalTextInputSchema = z
+  .object({
+    type: z.literal("text"),
+    text: z
+      .string()
+      .min(1)
+      .max(10_000)
+      .refine((value) => !containsAsciiControlCharacter(value), {
+        message:
+          "Terminal text cannot contain control characters; submit and special keys separately",
+      }),
+    submit: z.boolean().default(false),
+  })
+  .strict();
+
+const TerminalKeyInputSchema = z
+  .object({
+    type: z.literal("key"),
+    key: z.enum([
+      "Enter",
+      "Tab",
+      "Escape",
+      "Backspace",
+      "Delete",
+      "ArrowUp",
+      "ArrowDown",
+      "ArrowLeft",
+      "ArrowRight",
+      "Home",
+      "End",
+      "PageUp",
+      "PageDown",
+      "Insert",
+      "F1",
+      "F2",
+      "F3",
+      "F4",
+      "F5",
+      "F6",
+      "F7",
+      "F8",
+      "F9",
+      "F10",
+      "F11",
+      "F12",
+      "a",
+      "c",
+      "d",
+      "l",
+      "r",
+      "u",
+      "w",
+      "z",
+    ]),
+    ctrl: z.boolean().default(false),
+    alt: z.boolean().default(false),
+    meta: z.boolean().default(false),
+    shift: z.boolean().default(false),
+  })
+  .strict();
+
+export const TerminalInputParametersSchema = z
+  .object({
+    ...TerminalReferenceShape,
+    input: z.discriminatedUnion("type", [TerminalTextInputSchema, TerminalKeyInputSchema]),
+    waitFor: TerminalWaitConditionSchema.optional(),
+    timeoutMs: z.number().int().min(100).max(120_000).default(15_000),
+    pollIntervalMs: z.number().int().min(50).max(2_000).default(200),
+    maxOutputLines: z.number().int().min(1).max(200).default(80),
+    authorization: ExplicitUserAuthorizationSchema,
+  })
+  .strict();
+
+export const TerminalInputDataSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    documentId: z.string().min(1).max(128),
+    domRevision: z.number().int().nonnegative(),
+    terminalId: z.string().min(1).max(128),
+    inputType: z.enum(["text", "key"]),
+    characters: z.number().int().nonnegative().max(10_000),
+    submitted: z.boolean(),
+    key: z.string().min(1).max(32).nullable(),
+    trustedInput: z.literal(true),
+    tabActivated: z.literal(false),
+    draftVerification: z.enum([
+      "not_applicable",
+      "buffer_observed",
+      "transport_observed",
+      "unavailable",
+    ]),
+    deliveryVerification: z.enum([
+      "observed",
+      "transport_observed",
+      "not_requested",
+      "unavailable",
+      "timed_out",
+    ]),
+    output: TerminalReadDataSchema,
+  })
+  .strict();
+
 export const PrintToPdfParametersSchema = z
   .object({
     tabId: z.number().int().nonnegative(),
@@ -2744,6 +2976,17 @@ export type CaptureScreenshotParameters = z.infer<typeof CaptureScreenshotParame
 export type PerformGestureInput = z.input<typeof PerformGestureParametersSchema>;
 export type PerformGestureParameters = z.infer<typeof PerformGestureParametersSchema>;
 export type PerformGestureData = z.infer<typeof PerformGestureDataSchema>;
+export type TerminalDescriptor = z.infer<typeof TerminalDescriptorSchema>;
+export type GetTerminalsInput = z.input<typeof GetTerminalsParametersSchema>;
+export type GetTerminalsParameters = z.infer<typeof GetTerminalsParametersSchema>;
+export type GetTerminalsData = z.infer<typeof GetTerminalsDataSchema>;
+export type TerminalWaitCondition = z.infer<typeof TerminalWaitConditionSchema>;
+export type ReadTerminalInput = z.input<typeof ReadTerminalParametersSchema>;
+export type ReadTerminalParameters = z.infer<typeof ReadTerminalParametersSchema>;
+export type TerminalReadData = z.infer<typeof TerminalReadDataSchema>;
+export type TerminalInputInput = z.input<typeof TerminalInputParametersSchema>;
+export type TerminalInputParameters = z.infer<typeof TerminalInputParametersSchema>;
+export type TerminalInputData = z.infer<typeof TerminalInputDataSchema>;
 export type PrintToPdfInput = z.input<typeof PrintToPdfParametersSchema>;
 export type PrintToPdfParameters = z.infer<typeof PrintToPdfParametersSchema>;
 export type PrintToPdfData = z.infer<typeof PrintToPdfDataSchema>;
@@ -2793,3 +3036,165 @@ export function parseIbpEnvelope(value: unknown): IbpEnvelope {
     },
   ]);
 }
+
+// --- Figma design files -----------------------------------------------------
+//
+// Figma paints the design surface into a single WebGL canvas but keeps its
+// chrome - pages list, layer tree, properties - in ordinary DOM. These typed
+// actions read that chrome. Anchors are layered on purpose: `data-testid` where
+// Figma ships one, then role plus accessible name. Hashed CSS module classes are
+// never used because they change on every deploy.
+
+export const FigmaModeSchema = z.enum(["design", "dev", "prototype", "unknown"]);
+
+export const FigmaAnchorStrategySchema = z.enum([
+  "test_id",
+  "role",
+  "accessible_name",
+  "structure",
+]);
+
+export const FigmaAnchorHealthSchema = z
+  .object({
+    ok: z.boolean(),
+    resolved: z.array(z.string().min(1).max(64)).max(32),
+    missing: z.array(z.string().min(1).max(64)).max(32),
+  })
+  .strict();
+
+export const FigmaSelectionSchema = z
+  .object({
+    name: z.string().max(512),
+    type: z.string().max(128),
+  })
+  .strict();
+
+export const GetFigmaDocumentParametersSchema = z
+  .object({ tabId: z.number().int().nonnegative() })
+  .strict();
+
+export const GetFigmaDocumentDataSchema = z
+  .object({
+    file: z.object({ name: z.string().max(512) }).strict(),
+    mode: FigmaModeSchema,
+    pages: z.array(z.object({ name: z.string().max(512), current: z.boolean() }).strict()).max(500),
+    selection: FigmaSelectionSchema.nullable(),
+    anchors: FigmaAnchorHealthSchema,
+  })
+  .strict();
+
+export const GetFigmaLayersParametersSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    maxRows: z.number().int().min(1).max(1_000).default(300),
+  })
+  .strict();
+
+export const FigmaLayerSchema = z
+  .object({
+    layerId: z.string().min(1).max(128),
+    name: z.string().max(512),
+    depth: z.number().int().nonnegative().max(64),
+    hasChildren: z.boolean(),
+    expanded: z.boolean(),
+    selected: z.boolean(),
+  })
+  .strict();
+
+export const GetFigmaLayersDataSchema = z
+  .object({
+    page: z.string().max(512),
+    layers: z.array(FigmaLayerSchema).max(1_000),
+    // The layer panel is virtualised: only rows Figma has rendered can be read.
+    renderedOnly: z.literal(true),
+    truncated: z.boolean(),
+    anchors: FigmaAnchorHealthSchema,
+  })
+  .strict();
+
+export const GetFigmaPropertiesParametersSchema = z
+  .object({ tabId: z.number().int().nonnegative() })
+  .strict();
+
+export const FigmaPropertySchema = z
+  .object({ name: z.string().max(128), value: z.string().max(512) })
+  .strict();
+
+export const GetFigmaPropertiesDataSchema = z
+  .object({
+    selection: FigmaSelectionSchema.nullable(),
+    // `design_panel` values are reassembled from the inspector and may differ
+    // from the CSS Figma itself emits in Dev Mode.
+    source: z.enum(["dev_mode_inspect", "design_panel"]),
+    reconstructed: z.boolean(),
+    sections: z
+      .array(
+        z
+          .object({
+            name: z.string().max(128),
+            properties: z.array(FigmaPropertySchema).max(64),
+          })
+          .strict(),
+      )
+      .max(32),
+    css: z.string().max(20_000).optional(),
+    anchors: FigmaAnchorHealthSchema,
+  })
+  .strict();
+
+export const FigmaSelectParametersSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    target: z.discriminatedUnion("type", [
+      z.object({ type: z.literal("page"), name: z.string().min(1).max(512) }).strict(),
+      z.object({ type: z.literal("layer"), layerId: z.string().min(1).max(128) }).strict(),
+      z.object({ type: z.literal("mode"), mode: z.enum(["design", "dev"]) }).strict(),
+    ]),
+  })
+  .strict();
+
+export const FigmaSelectDataSchema = z
+  .object({
+    selected: z.boolean(),
+    mode: FigmaModeSchema,
+    selection: FigmaSelectionSchema.nullable(),
+    currentPage: z.string().max(512),
+  })
+  .strict();
+
+export const FigmaHealthcheckParametersSchema = z
+  .object({ tabId: z.number().int().nonnegative() })
+  .strict();
+
+export const FigmaHealthcheckDataSchema = z
+  .object({
+    ok: z.boolean(),
+    figmaDetected: z.boolean(),
+    checks: z
+      .array(
+        z
+          .object({
+            anchor: z.string().min(1).max(64),
+            strategy: FigmaAnchorStrategySchema,
+            ok: z.boolean(),
+            detail: z.string().max(256),
+          })
+          .strict(),
+      )
+      .max(32),
+  })
+  .strict();
+
+export type FigmaMode = z.infer<typeof FigmaModeSchema>;
+export type FigmaAnchorHealth = z.infer<typeof FigmaAnchorHealthSchema>;
+export type GetFigmaDocumentParameters = z.infer<typeof GetFigmaDocumentParametersSchema>;
+export type GetFigmaDocumentData = z.infer<typeof GetFigmaDocumentDataSchema>;
+export type GetFigmaLayersParameters = z.infer<typeof GetFigmaLayersParametersSchema>;
+export type GetFigmaLayersData = z.infer<typeof GetFigmaLayersDataSchema>;
+export type FigmaLayer = z.infer<typeof FigmaLayerSchema>;
+export type GetFigmaPropertiesParameters = z.infer<typeof GetFigmaPropertiesParametersSchema>;
+export type GetFigmaPropertiesData = z.infer<typeof GetFigmaPropertiesDataSchema>;
+export type FigmaSelectParameters = z.infer<typeof FigmaSelectParametersSchema>;
+export type FigmaSelectData = z.infer<typeof FigmaSelectDataSchema>;
+export type FigmaHealthcheckParameters = z.infer<typeof FigmaHealthcheckParametersSchema>;
+export type FigmaHealthcheckData = z.infer<typeof FigmaHealthcheckDataSchema>;

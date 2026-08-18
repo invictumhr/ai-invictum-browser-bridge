@@ -140,6 +140,36 @@ const actions: readonly BrowserCapability[] = [
     description: "Explicitly authorized form submission",
   },
   {
+    action: "browser.get_figma_document",
+    riskLevel: "R0",
+    targeted: true,
+    description: "Read the page list, mode, and selection of an open Figma design file",
+  },
+  {
+    action: "browser.get_figma_layers",
+    riskLevel: "R0",
+    targeted: true,
+    description: "Read the rendered rows of the Figma layer tree for the current page",
+  },
+  {
+    action: "browser.get_figma_properties",
+    riskLevel: "R0",
+    targeted: true,
+    description: "Read properties of the current Figma selection, preferring Dev Mode CSS",
+  },
+  {
+    action: "browser.figma_select",
+    riskLevel: "R1",
+    targeted: true,
+    description: "Switch the Figma page, mode, or selected layer through its own controls",
+  },
+  {
+    action: "browser.figma_healthcheck",
+    riskLevel: "R0",
+    targeted: true,
+    description: "Verify that every Figma UI anchor the adapter depends on still resolves",
+  },
+  {
     action: "browser.get_wordpress_menu",
     riskLevel: "R0",
     targeted: true,
@@ -248,6 +278,24 @@ const actions: readonly BrowserCapability[] = [
     description: "Revision-bound hover, focus, keyboard, scroll, or drag-and-drop gesture",
   },
   {
+    action: "browser.get_terminals",
+    riskLevel: "R0",
+    targeted: true,
+    description: "Detect xterm-compatible terminal widgets without reading terminal output",
+  },
+  {
+    action: "browser.read_terminal",
+    riskLevel: "R2",
+    targeted: true,
+    description: "Explicitly authorized bounded and redacted xterm buffer readback",
+  },
+  {
+    action: "browser.terminal_input",
+    riskLevel: "R3",
+    targeted: true,
+    description: "Explicitly authorized trusted terminal text, command, or special-key input",
+  },
+  {
     action: "browser.print_to_pdf",
     riskLevel: "R0",
     targeted: true,
@@ -306,6 +354,8 @@ export const getExtensionCapabilities = (): SystemCapabilitiesData =>
       };
     }),
     features: {
+      figmaDesignFiles: true,
+      agentWindow: true,
       persistentHttpHostAccess: true,
       semanticSnapshots: true,
       scopedSnapshots: true,
@@ -342,6 +392,10 @@ export const getExtensionCapabilities = (): SystemCapabilitiesData =>
       rawJavaScript: true,
       customControlIdentity: true,
       configurableTabActivation: true,
+      terminalAutomation: true,
+      trustedTerminalInput: true,
+      terminalBufferReadback: true,
+      terminalTransportReadback: true,
       userStop: true,
     },
   });

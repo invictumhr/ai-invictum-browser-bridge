@@ -29,6 +29,11 @@ import {
   BROWSER_SET_FILE_INPUT_FILES_ACTION,
   BROWSER_SELECT_OPTION_ACTION,
   BROWSER_SUBMIT_FORM_ACTION,
+  BROWSER_GET_FIGMA_DOCUMENT_ACTION,
+  BROWSER_GET_FIGMA_LAYERS_ACTION,
+  BROWSER_GET_FIGMA_PROPERTIES_ACTION,
+  BROWSER_FIGMA_SELECT_ACTION,
+  BROWSER_FIGMA_HEALTHCHECK_ACTION,
   BROWSER_GET_WORDPRESS_MENU_ACTION,
   BROWSER_EDIT_WORDPRESS_MENU_ACTION,
   BROWSER_GET_WORDPRESS_ADMIN_ACTION,
@@ -43,6 +48,9 @@ import {
   BROWSER_NETWORK_ACTION,
   BROWSER_EMULATE_DEVICE_ACTION,
   BROWSER_PERFORM_GESTURE_ACTION,
+  BROWSER_GET_TERMINALS_ACTION,
+  BROWSER_READ_TERMINAL_ACTION,
+  BROWSER_TERMINAL_INPUT_ACTION,
   BROWSER_PRINT_TO_PDF_ACTION,
   BROWSER_PAGE_API_REQUEST_ACTION,
   SYSTEM_CAPABILITIES_ACTION,
@@ -92,8 +100,16 @@ import {
   NetworkCaptureParametersSchema,
   DeviceEmulationParametersSchema,
   PerformGestureParametersSchema,
+  GetTerminalsParametersSchema,
+  ReadTerminalParametersSchema,
+  TerminalInputParametersSchema,
   PrintToPdfParametersSchema,
   PageApiRequestParametersSchema,
+  GetFigmaDocumentParametersSchema,
+  GetFigmaLayersParametersSchema,
+  GetFigmaPropertiesParametersSchema,
+  FigmaSelectParametersSchema,
+  FigmaHealthcheckParametersSchema,
 } from "./schemas.js";
 
 interface ActionParameterDefinition {
@@ -203,6 +219,26 @@ const definitions: Readonly<Record<string, ActionParameterDefinition>> = {
   [BROWSER_SUBMIT_FORM_ACTION]: {
     schema: SubmitFormParametersSchema,
     keys: [...revisionKeys, "authorization"],
+  },
+  [BROWSER_GET_FIGMA_DOCUMENT_ACTION]: {
+    schema: GetFigmaDocumentParametersSchema,
+    keys: ["tabId"],
+  },
+  [BROWSER_GET_FIGMA_LAYERS_ACTION]: {
+    schema: GetFigmaLayersParametersSchema,
+    keys: ["tabId", "maxRows"],
+  },
+  [BROWSER_GET_FIGMA_PROPERTIES_ACTION]: {
+    schema: GetFigmaPropertiesParametersSchema,
+    keys: ["tabId"],
+  },
+  [BROWSER_FIGMA_SELECT_ACTION]: {
+    schema: FigmaSelectParametersSchema,
+    keys: ["tabId", "target"],
+  },
+  [BROWSER_FIGMA_HEALTHCHECK_ACTION]: {
+    schema: FigmaHealthcheckParametersSchema,
+    keys: ["tabId"],
   },
   [BROWSER_GET_WORDPRESS_MENU_ACTION]: {
     schema: GetWordPressMenuParametersSchema,
@@ -350,6 +386,40 @@ const definitions: Readonly<Record<string, ActionParameterDefinition>> = {
       "deltaY",
       "x",
       "y",
+    ],
+  },
+  [BROWSER_GET_TERMINALS_ACTION]: {
+    schema: GetTerminalsParametersSchema,
+    keys: ["tabId"],
+  },
+  [BROWSER_READ_TERMINAL_ACTION]: {
+    schema: ReadTerminalParametersSchema,
+    keys: [
+      "tabId",
+      "documentId",
+      "domRevision",
+      "terminalId",
+      "maxLines",
+      "includeScrollback",
+      "waitFor",
+      "timeoutMs",
+      "pollIntervalMs",
+      "authorization",
+    ],
+  },
+  [BROWSER_TERMINAL_INPUT_ACTION]: {
+    schema: TerminalInputParametersSchema,
+    keys: [
+      "tabId",
+      "documentId",
+      "domRevision",
+      "terminalId",
+      "input",
+      "waitFor",
+      "timeoutMs",
+      "pollIntervalMs",
+      "maxOutputLines",
+      "authorization",
     ],
   },
   [BROWSER_PRINT_TO_PDF_ACTION]: {

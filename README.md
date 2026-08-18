@@ -10,7 +10,14 @@ Invictum Browser Bridge is a security-first local bridge that lets authorized AI
   semantic-delta, timing, marks, and safe stale-reference orchestration;
 - automatic hidden startup of the Desktop Authority from MCP/CLI;
 - runtime `system.capabilities` so agents use the installed build rather than stale documentation;
+- typed xterm/WHM terminal detection, bounded redacted buffer or action-local
+  WebSocket-stream readback, fail-closed draft verification before Enter,
+  trusted background-tab input, prompt/text/quiet waits, and strict R2/R3
+  authorization;
 - tab listing, `browser.open_tab`, explicitly authorized `browser.close_tab`, `browser.navigate`, and condition-based `browser.wait_for`, with a persisted toolbar choice between background work and foreground activation plus explicit per-call override;
+- bounded lazy-render recovery for focus-gated applications: remain in the
+  background for 20 seconds, activate once only when the expected renderer is
+  still absent, then restore prior user focus when safe;
 - required all-HTTP(S) Chrome site access, avoiding manual permission approval for every new domain;
 - bounded compact semantic snapshots, token-light `outline` and subtree modes, semantic element search, and deterministic one-revision stale-reference recovery;
 - MCP dry runs, structured confirmation/elicitation, idempotent retry keys,
@@ -76,7 +83,7 @@ ping -> capabilities -> open/navigate -> optional identify -> wait -> outline/sn
      -> typed action (inspect/events only when unclear) -> verify -> unlock in finally
 ```
 
-Read [AGENT_USAGE.md](AGENT_USAGE.md) for exact MCP/CLI/SDK examples, action contracts, recovery steps, submit rules, permission behavior, and testing.
+Read [AGENT_USAGE.md](AGENT_USAGE.md) for exact MCP/CLI/SDK examples, action contracts, recovery steps, submit rules, permission behavior, and testing. Browser-hosted terminals have a dedicated [terminal automation guide](docs/TERMINAL_AUTOMATION.md).
 
 The dedicated local-upload contract and post-Reload verification are in [docs/FILE_UPLOAD.md](docs/FILE_UPLOAD.md).
 

@@ -20,9 +20,11 @@ import { ChromeNetworkCaptureAdapter } from "./network.js";
 import { ChromePdfAdapter } from "./pdf.js";
 import { ChromePageToolsAdapter } from "./page-tools.js";
 import { ChromePageApiAdapter } from "./page-api.js";
+import { ChromeFigmaAdapter } from "./figma.js";
 import { ChromeWordPressMenuAdapter } from "./wordpress-menu.js";
 import { ChromeWordPressAdminAdapter } from "./wordpress-admin.js";
 import { ChromeWordPressEditorAdapter } from "./wordpress-editor.js";
+import { ChromeTerminalAdapter } from "./terminal.js";
 import { debuggerSessions } from "./debugger-session.js";
 import { TabActivationSettings, type TabActivationMode } from "../tab-activation-settings.js";
 
@@ -46,8 +48,10 @@ const networkCapture = new ChromeNetworkCaptureAdapter();
 const pdf = new ChromePdfAdapter();
 const pageTools = new ChromePageToolsAdapter((parameters) => snapshots.getPageSnapshot(parameters));
 const pageApi = new ChromePageApiAdapter();
+const figma = new ChromeFigmaAdapter();
 const wordpressMenu = new ChromeWordPressMenuAdapter();
 const wordpressAdmin = new ChromeWordPressAdminAdapter();
+const terminal = new ChromeTerminalAdapter();
 const wordpressEditor = new ChromeWordPressEditorAdapter((tabId) =>
   snapshots.getPageSnapshot({
     tabId,
@@ -129,6 +133,15 @@ const connection = new NativeConnectionManager(
       indicator.run(parameters.tabId, () => interactions.setChecked(parameters, checked)),
     submitForm: (parameters) =>
       indicator.run(parameters.tabId, () => interactions.submitForm(parameters)),
+    getFigmaDocument: (parameters) =>
+      indicator.run(parameters.tabId, () => figma.getDocument(parameters)),
+    getFigmaLayers: (parameters) =>
+      indicator.run(parameters.tabId, () => figma.getLayers(parameters)),
+    getFigmaProperties: (parameters) =>
+      indicator.run(parameters.tabId, () => figma.getProperties(parameters)),
+    figmaSelect: (parameters) => indicator.run(parameters.tabId, () => figma.select(parameters)),
+    figmaHealthcheck: (parameters) =>
+      indicator.run(parameters.tabId, () => figma.healthcheck(parameters)),
     getWordPressMenu: (parameters) =>
       indicator.run(parameters.tabId, () => wordpressMenu.getMenu(parameters)),
     editWordPressMenu: (parameters) =>
@@ -217,6 +230,12 @@ const connection = new NativeConnectionManager(
       indicator.run(parameters.tabId, () => interactions.clickAt(parameters)),
     performGesture: (parameters) =>
       indicator.run(parameters.tabId, () => interactions.performGesture(parameters)),
+    getTerminals: (parameters) =>
+      indicator.run(parameters.tabId, () => terminal.getTerminals(parameters)),
+    readTerminal: (parameters) =>
+      indicator.run(parameters.tabId, () => terminal.readTerminal(parameters)),
+    terminalInput: (parameters) =>
+      indicator.run(parameters.tabId, () => terminal.input(parameters)),
     manageNetworkCapture: (parameters) =>
       indicator.run(parameters.tabId, () => networkCapture.manage(parameters)),
     printToPdf: (parameters) => indicator.run(parameters.tabId, () => pdf.print(parameters)),

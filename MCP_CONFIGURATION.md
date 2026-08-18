@@ -75,10 +75,11 @@ claude mcp add --scope user invictum-browser -- "C:\Program Files\nodejs\node.ex
 
 ## MCP tools
 
-The server exposes 50 tools for the complete runtime action set plus batching,
-session cleanup, and a forward-compatible escape hatch. It also exposes five
+The server exposes 61 tools for the complete runtime action set plus batching,
+session cleanup, and a forward-compatible escape hatch. It also exposes six
 MCP prompts for safe web work, login, form filling, WordPress editing, and
-bounded diagnostics. `invictum_call` must never bypass policy.
+bounded diagnostics, and authorized browser-terminal work. `invictum_call`
+must never bypass policy.
 
 Tool schemas include standard MCP read-only, destructive, idempotent, and
 open-world annotations. Mutating tools additionally support adapter-level
@@ -93,6 +94,18 @@ examples are in
 Call `invictum_ping` and `invictum_capabilities` first. For `invictum_open_tab` and `invictum_navigate`, omit `active` so the user's persisted toolbar preference remains authoritative. Do not force `active: true` for visibility, screenshots, debugging, the reservation indicator, or convenience; background tabs support semantic actions and debugger screenshots. Use an explicit activation override only when the current task genuinely requires showing/focusing that tab for the user.
 
 For runtime errors use `invictum_console` in the order `start` → tested action → `read` → `stop`. For responsive testing use `invictum_emulate_device set`, then a fresh snapshot/interactions/screenshot, then `reset`. Both work without activating the tab. Visible DevTools should remain closed because Chrome permits one debugger client per target.
+
+For WHM/cPanel or another canvas xterm, use the six dedicated terminal tools
+documented in [docs/TERMINAL_AUTOMATION.md](docs/TERMINAL_AUTOMATION.md).
+Terminal detection is R0, bounded output readback is R2, and every trusted
+text/key input is R3. Never resend a command after uncertain delivery without
+first inspecting terminal state. Check `draftVerification` before reasoning
+about submission and `deliveryVerification` after every input. For text with
+`submit:true`, the Bridge sends Enter only after the exact draft is observed in
+the xterm/accessibility buffer or on exactly one action-local terminal
+WebSocket. Otherwise it returns `TERMINAL_DELIVERY_UNVERIFIED`, leaves the
+draft staged, and withholds Enter. `unavailable` is not a timeout or retry
+signal; inspect the bounded terminal crop and never retype an uncertain draft.
 
 Always stop/reset those temporary tools and unlock a controlled tab in `finally`, or call `invictum_end_session` once on task completion. Screenshot output is emitted as MCP image content rather than copied into text. See [docs/DEVTOOLS_CONSOLE_AND_MOBILE.md](docs/DEVTOOLS_CONSOLE_AND_MOBILE.md).
 

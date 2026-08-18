@@ -6,6 +6,7 @@ import {
 } from "@invictum/protocol";
 
 import { ExtensionCommandError } from "./command-error.js";
+import { TOP_FRAME_ID } from "./frames.js";
 import { isChromePageAccessDenied, pageAccessDeniedMessage } from "./page-access.js";
 
 const SNAPSHOT_CHANNEL = "invictum.browser.snapshot.v1";
@@ -104,12 +105,16 @@ export class ChromePageSnapshotAdapter {
         target: { tabId: parameters.tabId },
         files: ["content.js"],
       });
-      const rawResponse: unknown = await chrome.tabs.sendMessage(parameters.tabId, {
-        channel: SNAPSHOT_CHANNEL,
-        command: "get_page_snapshot",
-        requestId,
-        parameters,
-      });
+      const rawResponse: unknown = await chrome.tabs.sendMessage(
+        parameters.tabId,
+        {
+          channel: SNAPSHOT_CHANNEL,
+          command: "get_page_snapshot",
+          requestId,
+          parameters,
+        },
+        { frameId: TOP_FRAME_ID },
+      );
       const response = parseSnapshotResponse(rawResponse, requestId);
       if (!response.ok) {
         throw new ExtensionCommandError(

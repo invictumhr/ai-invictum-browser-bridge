@@ -19,9 +19,11 @@ Specialized references:
 - [docs/SCREENSHOTS_AND_ANNOTATIONS.md](docs/SCREENSHOTS_AND_ANNOTATIONS.md)
 - [docs/DEVTOOLS_CONSOLE_AND_MOBILE.md](docs/DEVTOOLS_CONSOLE_AND_MOBILE.md)
 - [docs/ADVANCED_AGENT_CAPABILITIES.md](docs/ADVANCED_AGENT_CAPABILITIES.md)
+- [docs/TERMINAL_AUTOMATION.md](docs/TERMINAL_AUTOMATION.md)
 - [docs/AGENT_PRODUCTIVITY_ACTIONS.md](docs/AGENT_PRODUCTIVITY_ACTIONS.md)
 - [docs/MCP_AGENT_ERGONOMICS.md](docs/MCP_AGENT_ERGONOMICS.md)
 - [docs/CAPABILITY_AUDIT.md](docs/CAPABILITY_AUDIT.md)
+- [docs/FIGMA.md](docs/FIGMA.md)
 
 ## 1. Non-negotiable rules
 
@@ -34,6 +36,9 @@ Specialized references:
    `active` unless the task genuinely requires the user to see or focus the
    tab. Background tabs support semantic actions, screenshots, diagnostics,
    mobile emulation, and PDF export.
+   If a focus-gated application has not produced its expected page root after
+   20 seconds, use the single activation fallback in section 7 and restore the
+   user's previous tab afterward when safe.
 4. The first targeted command automatically reserves the tab and shows
    **AI agent is using this tab**. Optionally set a safe identity such as
    `Codex`, `Cursor`, or `Claude`.
@@ -53,6 +58,9 @@ Specialized references:
     bypass them with another automation surface.
 11. Do not kill unknown processes on ports `47820` or `47821`. CLI and MCP
     start or repair Desktop Authority automatically.
+12. Browser-terminal detection is R0, bounded output readback is R2, and every
+    terminal text/key action is R3. Never infer command authorization from a
+    read-only request and never retry uncertain terminal input automatically.
 
 ## 2. Architecture and ports
 
@@ -105,6 +113,9 @@ Important MCP tools:
 - `invictum_check`, `invictum_uncheck`, `invictum_submit_form`
 - `invictum_set_file_input_files`
 - `invictum_perform_gesture`
+- `invictum_get_figma_document`, `invictum_get_figma_layers`,
+  `invictum_get_figma_properties`, `invictum_figma_select`,
+  `invictum_figma_healthcheck`
 - `invictum_get_wordpress_menu`, `invictum_edit_wordpress_menu`
 - `invictum_get_wordpress_admin`, `invictum_wordpress_list_table_action`
 - `invictum_get_wordpress_editor`, `invictum_edit_wordpress_editor`
@@ -113,6 +124,9 @@ Important MCP tools:
 - `invictum_evaluate`, `invictum_execute_javascript`
 - `invictum_page_api_request` for explicitly authorized same-origin APIs
 - `invictum_console`, `invictum_network`, `invictum_emulate_device`
+- `invictum_detect_terminals`, `invictum_read_terminal`,
+  `invictum_wait_for_terminal`, `invictum_type_terminal`,
+  `invictum_execute_terminal`, `invictum_send_terminal_key`
 - `invictum_screenshot`, `invictum_click_at`, `invictum_print_to_pdf`
 - `invictum_get_http_auth_state`, `invictum_authenticate_http`
 - `invictum_handle_beforeunload`, `invictum_handle_javascript_dialog`
@@ -172,11 +186,52 @@ pnpm browser click 42 <elementId>
 pnpm browser type 42 <elementId> "text"
 pnpm browser wait 42 selector "#ready"
 pnpm browser unlock 42
+pnpm browser close 42
 pnpm browser close-session
 ```
 
 Do not add `--active` merely for visibility or debugging. `open` and
 `navigate` without an activation flag honor the user's toolbar default.
+
+Typed form controls, uploads, and dialogs:
+
+```powershell
+pnpm browser check 42 <elementId>
+pnpm browser uncheck 42 <elementId>
+pnpm browser select 42 <elementId> "Option label"
+pnpm browser upload 42 <elementId> C:path	oile.pdf
+pnpm browser beforeunload 42 stay
+pnpm browser beforeunload 42 leave --url https://example.com/next
+pnpm browser activate 42
+pnpm browser scroll-to 42 <elementId>
+pnpm browser screenshot-element 42 <elementId> element.jpg
+```
+
+WordPress:
+
+```powershell
+pnpm browser wp-admin 42
+pnpm browser wp-row 42 <rowKey> <actionKey>
+pnpm browser wp-bulk 42 <actionKey>
+pnpm browser wp-editor 42
+pnpm browser wp-edit 42 "new content"
+pnpm browser wp-save 42
+```
+
+Figma design files:
+
+```powershell
+pnpm browser figma-health 42
+pnpm browser figma-doc 42
+pnpm browser figma-layers 42 300
+pnpm browser figma-props 42
+pnpm browser figma-select 42 page "Mobile"
+```
+
+`upload`, `select`, `beforeunload`, and every `wp-` write carry the same
+explicit-authorization requirement as their underlying actions. Unknown options
+are rejected rather than ignored, so a mistyped flag fails instead of silently
+doing nothing.
 
 Advanced shorthand:
 
@@ -190,6 +245,16 @@ pnpm browser context-click 42 <elementId>
 pnpm browser drag 42 <sourceId> <targetId>
 pnpm browser scroll-by 42 0 800
 pnpm browser scroll-xy 42 0 1200
+pnpm browser figma-doc 42
+pnpm browser figma-layers 42 300
+pnpm browser figma-props 42
+pnpm browser figma-select 42 page "Mobile"
+pnpm browser figma-health 42
+pnpm browser terminals 42
+pnpm browser terminal-read 42 --lines 40 --instruction user-read-terminal
+pnpm browser terminal-exec 42 "php -v" --wait-prompt --instruction user-run-php-version
+pnpm browser terminal-type 42 "text" --instruction user-stage-command
+pnpm browser terminal-key 42 c --ctrl --instruction user-interrupt-process
 pnpm browser console 42 start
 pnpm browser network 42 start
 pnpm browser mobile 42 mobile_medium portrait
@@ -274,6 +339,10 @@ end of a multi-tab workflow. `batch()` resolves exact `$steps.<id>.<path>` and
 `$last.<path>` placeholders, stops on the first error by default, and still
 routes every step through normal validation, policy, reservation, and audit.
 Batch steps also accept all `enhancedCall()` orchestration keys.
+
+The SDK also exposes `getTerminals()`, `readTerminal()`, `terminalInput()`,
+`typeTerminal()`, and `executeTerminal()`. All input helpers retain the strict
+R3 authorization requirement; `executeTerminal()` sends exactly one Enter.
 
 Control API endpoints:
 
@@ -371,6 +440,59 @@ when the user asked to see/focus the tab or an interaction genuinely requires
 foreground focus; snapshots, screenshots, diagnostics, mobile emulation, PDF,
 text extraction, API calls, and normal interaction do not.
 
+### The agent window
+
+`browser.open_tab` does not add tabs to the window the user is working in.
+On its first use the extension creates a window of its own, unfocused, and
+remembers it in `chrome.storage.session` so it survives service-worker
+suspension. Every later tab is created with that `windowId`.
+
+- Agent tabs never replace the tab the user is looking at.
+- Inside its own window the agent may switch tabs freely.
+- The window is never raised. The Bridge does not call
+  `chrome.windows.update({ focused: true })`, so the agent cannot jump in
+  front of the user.
+- Closing the window is safe; the next `open_tab` creates a fresh one.
+- If Chrome refuses a new window, the Bridge falls back to ordinary tab
+  creation rather than failing the call.
+
+Because the agent tab is active inside that window, applications that only
+initialise when visible — see below — now load without any activation
+fallback. A minimised agent window loses that benefit; leave it open beside the
+user's work.
+
+The `agentWindow` capability flag reports whether a build behaves this way.
+
+### Focus-gated lazy rendering
+
+Some web applications defer their real initialization until Chrome marks the
+tab visible. This has been observed in parts of Google Search Console,
+Cloudflare dashboards, and WHM/cPanel Terminal. Use this bounded escalation:
+
+1. Before opening the agent tab, use `list_tabs` to remember the active user
+   tab. Open/navigate the target in the background.
+2. Wait up to 20 seconds for task-specific readiness: the expected application
+   root, selector, meaningful title/text, or detected terminal. Prefer
+   `invictum_wait_for`; for a canvas terminal, retry detection only to establish
+   whether the `.xterm` root initialized.
+3. Inspect the result. A login page, consent screen, Cloudflare challenge,
+   browser error, or permission denial is a real state and must not be treated
+   as a focus-gated timeout.
+4. Only when the expected renderer is still absent after 20 seconds, call
+   `invictum_activate_tab` once. Wait up to 20 seconds for the same readiness
+   condition. Never repeatedly activate or flash the tab.
+5. Keep foreground time short. If activation was only a wake-up and the target
+   is still the active tab, restore the previously active tab when it still
+   exists and the user has not moved to a different tab. Do not override a new
+   user focus choice.
+6. If the page is still not ready, stop and report the observed state. Do not
+   create a focus loop and do not bypass authentication or challenge UI.
+
+This is an explicit exception to background-first behavior, not a new default.
+All subsequent semantic, terminal, screenshot, and diagnostic work should
+continue in the background unless foreground visibility is independently
+required.
+
 ## 8. Reservation, identity, and User Stop
 
 - The first targeted action reserves the tab.
@@ -414,11 +536,43 @@ Read truncation fields carefully:
 - `scanTruncated`: the page scan itself hit a limit.
 - `truncationReasons`: exact limits encountered.
 - `truncated`: compatibility aggregate.
+- `hiddenSubtreesSkipped`: how many subtrees the visibility filter skipped.
+
+### Hidden elements and skipped subtrees
+
+With the default `includeHidden: false` the snapshot omits elements that do not
+render, but it still walks through them. Only an element that stops its whole
+subtree from rendering is skipped outright:
+
+- `display: none`;
+- `opacity: 0`, which a descendant cannot reset;
+- the `hidden` attribute;
+- `content-visibility: hidden`;
+- a zero-sized box that also clips (`overflow` other than `visible`).
+
+`visibility: hidden` and plain zero-sized wrappers do **not** skip a subtree.
+A descendant can override `visibility`, and layout wrappers such as
+`display: contents` measure 0x0 while their descendants fill the screen.
+Treating those as hidden used to blank whole application UIs while still
+reporting `truncated: false`.
+
+`hiddenSubtreesSkipped` makes an empty result explainable: a page that
+genuinely has no interactive controls reports 0, while a page whose content sits
+behind hidden containers reports how many were skipped. An empty snapshot with
+`truncated: false` and `hiddenSubtreesSkipped: 0` means the page really is
+empty — treat it as a load or authentication state, not as a hidden UI.
+
+The snapshot scans to `maxDepth` 64 by default, matching what
+`find_elements` uses internally, so both agree about the same page.
 
 References are bound to `documentId` and `domRevision`. The immediately
 previous revision (`N-1`) is accepted only if the same connected DOM node still
 has the same tag, role, accessible name, sensitivity, and control type.
 `submit_form` has no grace.
+
+Text blocks are recognised by tag **and** by ARIA role, so applications that
+mark headings with `role="heading"` instead of `h1`-`h6` still produce
+readable text instead of an empty result.
 
 For article/body reading, prefer `browser.get_page_text`. It joins only the
 sanitized semantic text blocks, accepts the same revision-bound subtree scope,
@@ -514,6 +668,39 @@ Before navigating away from unsaved changes, arm the native dialog handler
 before navigation. Use `stay` to preserve changes. Use `leave` only when the
 user has authorized discarding/leaving.
 
+## 12b. Figma design files
+
+Figma renders its design surface into one WebGL canvas but keeps its chrome —
+pages, layer tree, inspector — in ordinary DOM. Typed actions read that chrome;
+the canvas itself is only reachable through screenshots.
+
+```text
+open_tab -> figma_healthcheck -> figma_get_document
+         -> figma_select -> figma_get_layers / figma_get_properties
+```
+
+Start with `figma_healthcheck`. It separates three states that otherwise look
+the same: not a Figma file, Figma still loading, or a Figma UI change that broke
+an anchor. Until it reports `ok`, the other Figma actions return empty results
+rather than failing, so wait rather than retry.
+
+Figma does not finish initialising in a tab that has never been visible. The
+agent window (section 7) keeps its tab active, which is enough; do not fall back
+to activating a tab in the user's window.
+
+Read the result honestly: the layer panel is virtualised, so `renderedOnly` is
+always true and `truncated` means more rows exist. `properties.source` is
+`dev_mode_inspect` only when Figma's own CSS was available; `design_panel`
+with `reconstructed: true` means the values were reassembled and may differ.
+
+`figma_select` is R1 and changes the live document selection, which
+collaborators can see. A `layer` target is delivered as trusted Chrome input through CDP, because
+Figma's tree ignores synthetic events; that briefly attaches the debugger, so a
+visible DevTools window on the same tab can conflict. Always verify
+with `figma_get_document` instead of trusting `selected: true`.
+
+See [docs/FIGMA.md](docs/FIGMA.md) for anchors, limits, and full schemas.
+
 ## 13. JavaScript, DOM, CSS, and events
 
 Escalation order:
@@ -589,7 +776,83 @@ revision-bound and protected by submit/reset guards. See
 does not cancel the synthetic keydown. Browser-chrome shortcuts cannot be
 triggered because events remain inside the page.
 
-## 15. Console, network, mobile, and PDF
+## 15. Browser-hosted terminals
+
+Canvas-rendered xterm widgets, including WHM/cPanel Terminal, require the
+dedicated typed terminal adapter. Do not target the hidden xterm textarea with
+`type_text`, do not scrape canvas output from snapshots, and do not use raw
+JavaScript as a substitute.
+
+Use:
+
+```text
+detect_terminals -> select one fresh terminal reference -> bounded read
+-> exact explicitly authorized input once -> wait/read verification
+-> unlock in finally
+```
+
+Terminal actions never activate the tab themselves. If the WHM/cPanel page has
+not initialized an xterm after the 20-second background readiness window, the
+section 7 single-activation wake-up fallback may be used before detection is
+retried. Before trusted input, the adapter temporarily enables CDP focus
+emulation so a background page can receive keyboard events without becoming the
+active tab; the override is always disabled in `finally`. Trusted CDP input is
+then sent to the focused terminal helper. Immediately before delivery the
+adapter settles and rechecks focus, installs a short-lived xterm-only focus
+guard for the key-delivery window, and removes it in `finally`. It rechecks the
+target again before sending Enter. If WHM or another page component steals
+focus, the action fails closed with `TERMINAL_FOCUS_LOST`; never retry it
+automatically. Before a text action submits, the adapter must also observe the
+exact staged draft through the native/accessibility readback or one unambiguous
+terminal WebSocket. Otherwise it returns `TERMINAL_DELIVERY_UNVERIFIED` and does
+not send Enter. Output prefers the fixed bounded xterm-buffer reader, then the
+accessibility DOM, then a terminal-scoped WebSocket stream captured only during
+the authorized action. Every source receives the same size limits and
+common-secret redaction. A submitted command waits for output to change before
+accepting a prompt, preventing an old prompt from causing false success. On
+timeout or delivery uncertainty, inspect state without automatically resending
+the command.
+
+Some vendor builds do not expose the xterm buffer. `terminal-exec` now stages
+and verifies before Enter automatically. When its selected terminal transport
+is observable, the result can use `source:"websocket_stream"` and
+`draftVerification:"transport_observed"`. If it returns
+`TERMINAL_DELIVERY_UNVERIFIED`, the exact draft may still be present but Enter
+was not sent: verify it with a bounded terminal screenshot using the
+descriptor's `screenshotRegion`, send one separately authorized Enter, and
+verify the result. Never retype or repeat a command merely because programmatic
+readback is unavailable.
+
+Terminal text results also include `draftVerification`:
+
+- `buffer_observed`: the exact draft was visible in xterm/accessibility output;
+- `transport_observed`: one terminal WebSocket carried the exact draft;
+- `unavailable`: page receipt was not proven; a submitted text action fails
+  closed before Enter;
+- `not_applicable`: the action was a standalone special key.
+
+Terminal input also returns `deliveryVerification`:
+
+- `observed`: readable output changed and the applicable wait condition matched;
+- `transport_observed`: one terminal WebSocket carried the exact draft, but
+  bounded response output was not observable;
+- `not_requested`: the action intentionally had no output wait, such as a
+  navigation/control key;
+- `unavailable`: Chrome accepted the trusted events but this vendor exposes no
+  readable output, so page receipt is not proven;
+- `timed_out`: readable output existed but the condition did not match in time.
+
+When readback is unavailable and the caller did not explicitly request a wait,
+the adapter returns immediately instead of spending the default 15 seconds
+polling an impossible source. `unavailable` is never permission to resend. Use
+the draft/screenshot/one-Enter procedure and the single foreground fallback
+only when the canvas still does not accept background input after focus
+emulation.
+
+See [docs/TERMINAL_AUTOMATION.md](docs/TERMINAL_AUTOMATION.md) for MCP, CLI,
+SDK/control-API schemas, wait behavior, WHM guidance, audit privacy, and tests.
+
+## 16. Console, network, mobile, and PDF
 
 Console and network diagnostics must start before the action being diagnosed:
 
@@ -614,7 +877,7 @@ These features share one reference-counted debugger session per tab. Visible
 DevTools may conflict; close it and retry once. Cleanup always releases the
 feature's own reference.
 
-## 16. Authentication and dialogs
+## 17. Authentication and dialogs
 
 Prefilled HTML login:
 
@@ -649,7 +912,7 @@ Native JavaScript dialogs must be handled proactively:
 For “Leave site?” use the dedicated beforeunload helper. `stay` preserves the
 page; `leave` may discard unsaved changes.
 
-## 17. Screenshots and coordinates
+## 18. Screenshots and coordinates
 
 Screenshot modes:
 
@@ -680,23 +943,25 @@ captures when small text must remain readable.
 synthetic DOM fallback, cannot submit/reset forms, and must be followed by a
 new snapshot.
 
-## 18. Errors and recovery
+## 19. Errors and recovery
 
-| Code                       | Meaning                                      | Agent response                                                  |
-| -------------------------- | -------------------------------------------- | --------------------------------------------------------------- |
-| `PERMISSION_DENIED`        | Site access/session authorization is missing | inspect tab/origin details; do not bypass                       |
-| `POLICY_DENIED`            | User Stop or policy rejected the operation   | obey; request user action only when required                    |
-| `CONFIRMATION_REQUIRED`    | R2/R3 authorization is missing               | connect the current explicit instruction                        |
-| `INVALID_PARAMETERS`       | strict schema rejected keys/values           | use `issues` and `allowedKeys`; correct the call                |
-| `STALE_ELEMENT_REFERENCE`  | page/revision/reference changed              | use returned relocation or refresh snapshot/find                |
-| `ELEMENT_NOT_INTERACTABLE` | target is hidden/disabled/unsupported        | inspect current state; choose a semantic alternative            |
-| `SENSITIVE_INPUT_BLOCKED`  | credential/payment/OTP target                | user handles the value                                          |
-| `SCRIPT_POLICY_DENIED`     | constrained evaluator blocked source         | use a typed action; do not widen grammar to bypass              |
-| `TIMEOUT`                  | load/wait/transport timed out                | check native dialog, health, and ping; retry once if meaningful |
-| `BROWSER_API_ERROR`        | Chrome API/CDP failure                       | confirm tab and DevTools state; retry once if marked retryable  |
-| `LOCAL_FILE_NOT_FOUND`     | upload path does not exist                   | correct the absolute path                                       |
-| `LOCAL_FILE_ACCESS_DENIED` | file is unreadable/unavailable               | inspect permissions/locks                                       |
-| `MESSAGE_TOO_LARGE`        | bounded output exceeded protocol limit       | reduce scope, size, range, or buffer                            |
+| Code                           | Meaning                                          | Agent response                                                    |
+| ------------------------------ | ------------------------------------------------ | ----------------------------------------------------------------- |
+| `PERMISSION_DENIED`            | Site access/session authorization is missing     | inspect tab/origin details; do not bypass                         |
+| `POLICY_DENIED`                | User Stop or policy rejected the operation       | obey; request user action only when required                      |
+| `CONFIRMATION_REQUIRED`        | R2/R3 authorization is missing                   | connect the current explicit instruction                          |
+| `INVALID_PARAMETERS`           | strict schema rejected keys/values               | use `issues` and `allowedKeys`; correct the call                  |
+| `STALE_ELEMENT_REFERENCE`      | page/revision/reference changed                  | use returned relocation or refresh snapshot/find                  |
+| `ELEMENT_NOT_INTERACTABLE`     | target is hidden/disabled/unsupported            | inspect current state; choose a semantic alternative              |
+| `SENSITIVE_INPUT_BLOCKED`      | credential/payment/OTP target                    | user handles the value                                            |
+| `SCRIPT_POLICY_DENIED`         | constrained evaluator blocked source             | use a typed action; do not widen grammar to bypass                |
+| `TERMINAL_DELIVERY_UNVERIFIED` | draft was staged but page receipt was not proven | inspect terminal crop; never retype; send Enter only after proof  |
+| `TERMINAL_FOCUS_LOST`          | xterm was not the trusted keyboard target        | stop; inspect terminal and other focused fields; never auto-retry |
+| `TIMEOUT`                      | load/wait/transport timed out                    | check native dialog, health, and ping; retry once if meaningful   |
+| `BROWSER_API_ERROR`            | Chrome API/CDP failure                           | confirm tab and DevTools state; retry once if marked retryable    |
+| `LOCAL_FILE_NOT_FOUND`         | upload path does not exist                       | correct the absolute path                                         |
+| `LOCAL_FILE_ACCESS_DENIED`     | file is unreadable/unavailable                   | inspect permissions/locks                                         |
+| `MESSAGE_TOO_LARGE`            | bounded output exceeded protocol limit           | reduce scope, size, range, or buffer                              |
 
 Recovery order:
 
@@ -709,7 +974,7 @@ Recovery order:
 7. request manual Site-access/reauthorization only when Chrome or User Stop
    requires it
 
-## 19. Build and verification
+## 20. Build and verification
 
 Normal gates:
 
@@ -729,8 +994,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\verify-after-reload.ps1
 
 The current gate expects:
 
-- 46 runtime actions;
-- 50 MCP tools;
+- 54 runtime browser actions and 61 MCP tools;
+- terminal protocol, policy, adapter, redaction, no-activation, and fixture
+  smoke coverage;
 - all upload, WordPress, DOM/CSS/event, console, network, device, gesture, PDF,
   identity, clean-text, natural-find, history-navigation, page-API, batching,
   screenshot, and annotation feature flags;
@@ -744,12 +1010,14 @@ The current gate expects:
 
 Never let an old test harness replace a healthy daily-use Desktop Authority.
 
-## 20. Final checklist
+## 21. Final checklist
 
 - [ ] `ping` reached the extension.
 - [ ] `capabilities` was read.
 - [ ] The URL was opened/navigated through IBB.
 - [ ] `active` was omitted unless foreground focus was genuinely required.
+- [ ] A lazy-render activation happened only after a 20-second readiness
+      timeout, at most once, and prior user focus was restored when safe.
 - [ ] The agent identity was set once if useful.
 - [ ] Semantic typed actions preceded JS, screenshots, and coordinates.
 - [ ] `activate_tab` was avoided unless foreground focus was genuinely needed.

@@ -154,4 +154,97 @@ describe("EnhancedActionRunner", () => {
       },
     });
   });
+
+  it("relocates a nameless generic element without sending invalid empty criteria", async () => {
+    let gestureCalls = 0;
+    const transport: EnhancedActionTransport = {
+      call: vi.fn(async (action: string, parameters: Readonly<Record<string, unknown>>) => {
+        if (action === "browser.perform_gesture") {
+          gestureCalls += 1;
+          if (gestureCalls === 1) {
+            throw Object.assign(new Error("stale"), {
+              code: "STALE_ELEMENT_REFERENCE",
+              retryable: true,
+            });
+          }
+          return { performed: true, resolvedElementId: parameters["elementId"] };
+        }
+        if (action === "browser.get_page_snapshot") {
+          return {
+            metadata: { documentId: "document-1", domRevision: 2, detail: "interactive" },
+            elements: [
+              {
+                elementId: "generic-2",
+                frameId: "top",
+                tag: "div",
+                role: "generic",
+                name: "",
+                selectors: { css: "#terminal-shell" },
+              },
+            ],
+          };
+        }
+        if (action === "browser.find_elements") {
+          expect(parameters).not.toHaveProperty("name");
+          expect(parameters).not.toHaveProperty("role");
+          expect(parameters).toMatchObject({
+            tag: "div",
+            frameId: "top",
+            css: "#terminal-shell",
+            matchMode: "exact",
+          });
+          return {
+            documentId: "document-1",
+            domRevision: 2,
+            matches: [
+              {
+                element: {
+                  elementId: "generic-2",
+                  frameId: "top",
+                  tag: "div",
+                  role: "generic",
+                  name: "",
+                  selectors: { css: "#terminal-shell" },
+                },
+              },
+            ],
+            count: 1,
+          };
+        }
+        throw new Error(`Unexpected action ${action}`);
+      }),
+    };
+    const runner = new EnhancedActionRunner(transport);
+    runner.observe(
+      "browser.get_page_snapshot",
+      { tabId: 7 },
+      {
+        metadata: { documentId: "document-1", domRevision: 1, detail: "interactive" },
+        elements: [
+          {
+            elementId: "generic-1",
+            frameId: "top",
+            tag: "div",
+            role: "generic",
+            name: "",
+            selectors: { css: "#terminal-shell" },
+          },
+        ],
+      },
+    );
+
+    await expect(
+      runner.run("browser.perform_gesture", {
+        tabId: 7,
+        documentId: "document-1",
+        domRevision: 1,
+        elementId: "generic-1",
+        operation: "scroll_into_view",
+      }),
+    ).resolves.toMatchObject({
+      performed: true,
+      automaticallyRelocated: true,
+      resolvedElementId: "generic-2",
+    });
+  });
 });

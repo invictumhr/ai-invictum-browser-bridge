@@ -2,6 +2,11 @@ import { createHash, randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
 import {
+  type GetFigmaDocumentParameters,
+  type GetFigmaLayersParameters,
+  type GetFigmaPropertiesParameters,
+  type FigmaSelectParameters,
+  type FigmaHealthcheckParameters,
   IBP_ERROR_CODES,
   IbpProtocolError,
   getActionMetadata,
@@ -47,6 +52,9 @@ import {
   type NetworkCaptureInput,
   type DeviceEmulationInput,
   type PerformGestureInput,
+  type GetTerminalsInput,
+  type ReadTerminalInput,
+  type TerminalInputInput,
   type PrintToPdfInput,
   type PageApiRequestInput,
 } from "@invictum/protocol";
@@ -93,7 +101,7 @@ const MAX_IDEMPOTENCY_ENTRIES = 256;
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const canonicalize = (value: unknown): unknown => {
+export const canonicalize = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map(canonicalize);
   if (!isRecord(value)) return value;
   return Object.fromEntries(
@@ -103,12 +111,12 @@ const canonicalize = (value: unknown): unknown => {
   );
 };
 
-const parameterHash = (action: string, parameters: unknown): string =>
+export const parameterHash = (action: string, parameters: unknown): string =>
   createHash("sha256")
     .update(JSON.stringify(canonicalize({ action, parameters })))
     .digest("hex");
 
-const hasExplicitAuthorization = (parameters: unknown): boolean => {
+export const hasExplicitAuthorization = (parameters: unknown): boolean => {
   if (!isRecord(parameters) || !isRecord(parameters["authorization"])) return false;
   const authorization = parameters["authorization"];
   return (
@@ -520,6 +528,30 @@ export class DesktopControlServer {
       case "browser.submit_form":
         result = await this.#bridge.submitForm(context, parameters as SubmitFormParameters);
         break;
+      case "browser.get_figma_document":
+        result = await this.#bridge.getFigmaDocument(
+          context,
+          parameters as GetFigmaDocumentParameters,
+        );
+        break;
+      case "browser.get_figma_layers":
+        result = await this.#bridge.getFigmaLayers(context, parameters as GetFigmaLayersParameters);
+        break;
+      case "browser.get_figma_properties":
+        result = await this.#bridge.getFigmaProperties(
+          context,
+          parameters as GetFigmaPropertiesParameters,
+        );
+        break;
+      case "browser.figma_select":
+        result = await this.#bridge.figmaSelect(context, parameters as FigmaSelectParameters);
+        break;
+      case "browser.figma_healthcheck":
+        result = await this.#bridge.figmaHealthcheck(
+          context,
+          parameters as FigmaHealthcheckParameters,
+        );
+        break;
       case "browser.get_wordpress_menu":
         result = await this.#bridge.getWordPressMenu(context, parameters as GetWordPressMenuInput);
         break;
@@ -597,6 +629,15 @@ export class DesktopControlServer {
         break;
       case "browser.perform_gesture":
         result = await this.#bridge.performGesture(context, parameters as PerformGestureInput);
+        break;
+      case "browser.get_terminals":
+        result = await this.#bridge.getTerminals(context, parameters as GetTerminalsInput);
+        break;
+      case "browser.read_terminal":
+        result = await this.#bridge.readTerminal(context, parameters as ReadTerminalInput);
+        break;
+      case "browser.terminal_input":
+        result = await this.#bridge.terminalInput(context, parameters as TerminalInputInput);
         break;
       case "browser.print_to_pdf":
         result = await this.#bridge.printToPdf(context, parameters as PrintToPdfInput);

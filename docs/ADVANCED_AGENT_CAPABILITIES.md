@@ -9,6 +9,7 @@ snapshot/find/action workflows:
 - PDF export;
 - programmatic console capture;
 - mobile device emulation.
+- xterm-compatible browser-hosted terminals.
 
 Always call `system.capabilities` first. The installed extension is the source
 of truth.
@@ -216,3 +217,24 @@ unlock_tab in finally
 ```
 
 Prefer `invictum_end_session` when one agent session reserved multiple tabs.
+
+## 7. Browser-hosted terminals
+
+Actions: `browser.get_terminals`, `browser.read_terminal`,
+`browser.terminal_input`  
+MCP: `invictum_detect_terminals`, `invictum_read_terminal`,
+`invictum_wait_for_terminal`, `invictum_type_terminal`,
+`invictum_execute_terminal`, `invictum_send_terminal_key`  
+CLI: `terminals`, `terminal-read`, `terminal-type`, `terminal-exec`,
+`terminal-key`
+
+These actions handle canvas-rendered xterm widgets without implicitly
+activating the tab. Detection is R0, bounded/redacted buffer readback is R2,
+and all trusted text or key input is R3. Input captures a pre-action baseline,
+never treats an already-visible prompt as proof that a new command completed,
+reports `deliveryVerification`, and returns a safe document-coordinate
+`screenshotRegion` for canvas-only verification. A vendor terminal that cannot
+accept or paint background input may use the guide's single explicit foreground
+fallback. See
+[TERMINAL_AUTOMATION.md](TERMINAL_AUTOMATION.md) for the mandatory workflow,
+WHM guidance, schemas, limitations, and verification.

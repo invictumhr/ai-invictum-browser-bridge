@@ -12,10 +12,12 @@
     "smoke:chrome:phase2-form": "node dist/chrome-phase2-form-smoke.js",
     "smoke:chrome:advanced-form": "node dist/chrome-advanced-form-smoke.js",
     "smoke:chrome:kitchen-sink": "node dist/chrome-kitchen-sink-smoke.js",
+    "smoke:chrome:terminal": "node dist/chrome-terminal-smoke.js",
     "smoke:chrome:agent-control": "node dist/chrome-agent-control-smoke.js",
     "smoke:chrome:auth-dialog": "node dist/chrome-auth-dialog-smoke.js",
     "test:integration": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "smoke:chrome:figma": "node dist/chrome-figma-smoke.js"
   },
   "dependencies": {
     "@invictum/agent-sdk": "workspace:*",

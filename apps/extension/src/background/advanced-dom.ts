@@ -12,6 +12,7 @@ import {
 } from "@invictum/protocol";
 
 import { ExtensionCommandError } from "./command-error.js";
+import { TOP_FRAME_ID } from "./frames.js";
 import { debuggerSessions, type ChromeDebuggerLease } from "./debugger-session.js";
 import { isChromePageAccessDenied, pageAccessDeniedMessage } from "./page-access.js";
 
@@ -33,12 +34,16 @@ const contentCommand = async (
   parameters: unknown,
 ): Promise<unknown> => {
   const requestId = crypto.randomUUID();
-  const raw = await chrome.tabs.sendMessage(tabId, {
-    channel: CONTENT_CHANNEL,
-    command,
-    requestId,
-    parameters,
-  });
+  const raw = await chrome.tabs.sendMessage(
+    tabId,
+    {
+      channel: CONTENT_CHANNEL,
+      command,
+      requestId,
+      parameters,
+    },
+    { frameId: TOP_FRAME_ID },
+  );
   if (!isRecord(raw) || raw["requestId"] !== requestId || typeof raw["ok"] !== "boolean") {
     throw new ExtensionCommandError(
       IBP_ERROR_CODES.INVALID_MESSAGE,
@@ -274,7 +279,7 @@ export const resolvedNodeObjectId = (value: unknown): string | undefined => {
 };
 
 export class ChromeAdvancedDomAdapter {
-  readonly #activeInspections = new Set<number>();
+  readonly #inspectionQueues = new Map<number, Promise<void>>();
 
   public async mutate(parameters: MutateDomParameters): Promise<MutateDomData> {
     const tabUrl = await normalPage(parameters.tabId, "DOM mutation");
@@ -342,14 +347,14 @@ export class ChromeAdvancedDomAdapter {
         false,
       );
     }
-    if (this.#activeInspections.has(parameters.tabId)) {
-      throw new ExtensionCommandError(
-        IBP_ERROR_CODES.BROWSER_API_ERROR,
-        `An element inspection is already active for tab ${parameters.tabId}`,
-        true,
-      );
-    }
-    this.#activeInspections.add(parameters.tabId);
+    const previousInspection = this.#inspectionQueues.get(parameters.tabId) ?? Promise.resolve();
+    let releaseQueue!: () => void;
+    const queueGate = new Promise<void>((resolve) => {
+      releaseQueue = resolve;
+    });
+    const queuedInspection = previousInspection.catch(() => undefined).then(() => queueGate);
+    this.#inspectionQueues.set(parameters.tabId, queuedInspection);
+    await previousInspection.catch(() => undefined);
     let prepared: PreparedInspection | undefined;
     let lease: ChromeDebuggerLease | undefined;
     const target: chrome.debugger.Debuggee = { tabId: parameters.tabId };
@@ -540,7 +545,10 @@ export class ChromeAdvancedDomAdapter {
           token: prepared.token,
         }).catch(() => undefined);
       }
-      this.#activeInspections.delete(parameters.tabId);
+      releaseQueue();
+      if (this.#inspectionQueues.get(parameters.tabId) === queuedInspection) {
+        this.#inspectionQueues.delete(parameters.tabId);
+      }
     }
   }
 

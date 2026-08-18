@@ -33,6 +33,10 @@ Read the specialized guide that applies to the task:
 - Programmatic console, metadata-only network capture, mobile emulation,
   advanced gestures, and PDF export:
   [docs/ADVANCED_AGENT_CAPABILITIES.md](docs/ADVANCED_AGENT_CAPABILITIES.md).
+- WHM/cPanel and other xterm-compatible browser terminals:
+  [docs/TERMINAL_AUTOMATION.md](docs/TERMINAL_AUTOMATION.md). Use only the
+  typed terminal actions; buffer reads are R2 and every text/key input is R3.
+  Never retry uncertain terminal input automatically.
 - MCP dry runs, idempotency, structured confirmation/elicitation,
   post-action context, strict stale relocation, conditional batching, and
   set-of-marks screenshots:
@@ -49,11 +53,16 @@ Read the specialized guide that applies to the task:
 - runtime capabilities reported by `system.capabilities`;
 - Chrome Site access and restricted pages;
 - automatic background-tab behavior and per-tab agent identity;
+- the bounded background-first readiness rule: wait 20 seconds, activate once
+  only for a genuinely focus-gated renderer, then restore prior user focus when
+  safe;
 - prefilled login, ephemeral HTTP Basic Auth, and native dialogs;
 - explicitly authorized local file upload without path leakage in audit logs;
 - typed WordPress menu/admin/editor workflows;
 - advanced inspection, event capture, DOM/CSS mutation, and raw-JS fallback;
 - metadata-only network diagnostics, synthetic gestures, and PDF export;
+- explicitly authorized, bounded browser-terminal detection, readback, trusted
+  input, waits, and recovery;
 - screenshots, annotations, and coordinate fallback;
 - the required `reserve -> work -> browser.unlock_tab` lifecycle;
 - policy, audit, and security boundaries;

@@ -585,7 +585,7 @@ const createCustomMenuElement = (node: MenuNode, ownerDocument: Document): HTMLL
   target.name = `menu-item-target[${itemId}]`;
   target.value = "_blank";
   target.checked = node.openInNewTab;
-  targetLabel.append(target, " Otvori u novoj kartici");
+  targetLabel.append(target, " Open link in a new tab");
   settings.append(targetLabel);
 
   settings.append(

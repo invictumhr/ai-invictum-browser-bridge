@@ -1,5 +1,30 @@
 import {
   BROWSER_LIST_TABS_ACTION,
+  BROWSER_GET_FIGMA_DOCUMENT_ACTION,
+  GetFigmaDocumentParametersSchema,
+  GetFigmaDocumentDataSchema,
+  createGetFigmaDocumentResponse,
+  type GetFigmaDocumentParameters,
+  BROWSER_GET_FIGMA_LAYERS_ACTION,
+  GetFigmaLayersParametersSchema,
+  GetFigmaLayersDataSchema,
+  createGetFigmaLayersResponse,
+  type GetFigmaLayersParameters,
+  BROWSER_GET_FIGMA_PROPERTIES_ACTION,
+  GetFigmaPropertiesParametersSchema,
+  GetFigmaPropertiesDataSchema,
+  createGetFigmaPropertiesResponse,
+  type GetFigmaPropertiesParameters,
+  BROWSER_FIGMA_SELECT_ACTION,
+  FigmaSelectParametersSchema,
+  FigmaSelectDataSchema,
+  createFigmaSelectResponse,
+  type FigmaSelectParameters,
+  BROWSER_FIGMA_HEALTHCHECK_ACTION,
+  FigmaHealthcheckParametersSchema,
+  FigmaHealthcheckDataSchema,
+  createFigmaHealthcheckResponse,
+  type FigmaHealthcheckParameters,
   BROWSER_OPEN_TAB_ACTION,
   BROWSER_CLOSE_TAB_ACTION,
   BROWSER_NAVIGATE_ACTION,
@@ -41,6 +66,9 @@ import {
   BROWSER_NETWORK_ACTION,
   BROWSER_EMULATE_DEVICE_ACTION,
   BROWSER_PERFORM_GESTURE_ACTION,
+  BROWSER_GET_TERMINALS_ACTION,
+  BROWSER_READ_TERMINAL_ACTION,
+  BROWSER_TERMINAL_INPUT_ACTION,
   BROWSER_PRINT_TO_PDF_ACTION,
   BROWSER_PAGE_API_REQUEST_ACTION,
   ClickElementDataSchema,
@@ -80,6 +108,9 @@ import {
   createNetworkCaptureResponse,
   createDeviceEmulationResponse,
   createPerformGestureResponse,
+  createGetTerminalsResponse,
+  createReadTerminalResponse,
+  createTerminalInputResponse,
   createPrintToPdfResponse,
   createPageApiResponse,
   createPongResponse,
@@ -158,6 +189,12 @@ import {
   DeviceEmulationParametersSchema,
   PerformGestureDataSchema,
   PerformGestureParametersSchema,
+  GetTerminalsDataSchema,
+  GetTerminalsParametersSchema,
+  TerminalReadDataSchema,
+  ReadTerminalParametersSchema,
+  TerminalInputDataSchema,
+  TerminalInputParametersSchema,
   PrintToPdfDataSchema,
   PrintToPdfParametersSchema,
   PageApiRequestDataSchema,
@@ -225,6 +262,9 @@ import {
   type NetworkCaptureParameters,
   type DeviceEmulationParameters,
   type PerformGestureParameters,
+  type GetTerminalsParameters,
+  type ReadTerminalParameters,
+  type TerminalInputParameters,
   type PrintToPdfParameters,
   type PageApiRequestParameters,
 } from "@invictum/protocol";
@@ -255,6 +295,11 @@ export interface ExtensionCommandDependencies {
   selectOption: (parameters: SelectOptionParameters) => Promise<unknown>;
   setChecked: (parameters: SetCheckedParameters, checked: boolean) => Promise<unknown>;
   submitForm: (parameters: SubmitFormParameters) => Promise<unknown>;
+  getFigmaDocument: (parameters: GetFigmaDocumentParameters) => Promise<unknown>;
+  getFigmaLayers: (parameters: GetFigmaLayersParameters) => Promise<unknown>;
+  getFigmaProperties: (parameters: GetFigmaPropertiesParameters) => Promise<unknown>;
+  figmaSelect: (parameters: FigmaSelectParameters) => Promise<unknown>;
+  figmaHealthcheck: (parameters: FigmaHealthcheckParameters) => Promise<unknown>;
   getWordPressMenu: (parameters: GetWordPressMenuParameters) => Promise<unknown>;
   editWordPressMenu: (parameters: EditWordPressMenuParameters) => Promise<unknown>;
   getWordPressAdmin: (parameters: GetWordPressAdminParameters) => Promise<unknown>;
@@ -276,6 +321,9 @@ export interface ExtensionCommandDependencies {
   manageNetworkCapture: (parameters: NetworkCaptureParameters) => Promise<unknown>;
   manageDeviceEmulation: (parameters: DeviceEmulationParameters) => Promise<unknown>;
   performGesture: (parameters: PerformGestureParameters) => Promise<unknown>;
+  getTerminals: (parameters: GetTerminalsParameters) => Promise<unknown>;
+  readTerminal: (parameters: ReadTerminalParameters) => Promise<unknown>;
+  terminalInput: (parameters: TerminalInputParameters) => Promise<unknown>;
   printToPdf: (parameters: PrintToPdfParameters) => Promise<unknown>;
   pageApiRequest: (parameters: PageApiRequestParameters) => Promise<unknown>;
 }
@@ -442,6 +490,41 @@ const unavailableBrowserCommands: ExtensionCommandDependencies = {
         "WordPress admin inspection is not configured",
       ),
     ),
+  getFigmaDocument: () =>
+    Promise.reject(
+      new ExtensionCommandError(
+        IBP_ERROR_CODES.PERMISSION_DENIED,
+        "Figma document inspection is not configured",
+      ),
+    ),
+  getFigmaLayers: () =>
+    Promise.reject(
+      new ExtensionCommandError(
+        IBP_ERROR_CODES.PERMISSION_DENIED,
+        "Figma layer inspection is not configured",
+      ),
+    ),
+  getFigmaProperties: () =>
+    Promise.reject(
+      new ExtensionCommandError(
+        IBP_ERROR_CODES.PERMISSION_DENIED,
+        "Figma property inspection is not configured",
+      ),
+    ),
+  figmaSelect: () =>
+    Promise.reject(
+      new ExtensionCommandError(
+        IBP_ERROR_CODES.PERMISSION_DENIED,
+        "Figma selection control is not configured",
+      ),
+    ),
+  figmaHealthcheck: () =>
+    Promise.reject(
+      new ExtensionCommandError(
+        IBP_ERROR_CODES.PERMISSION_DENIED,
+        "Figma anchor verification is not configured",
+      ),
+    ),
   wordpressListTableAction: () =>
     Promise.reject(
       new ExtensionCommandError(
@@ -566,6 +649,27 @@ const unavailableBrowserCommands: ExtensionCommandDependencies = {
       new ExtensionCommandError(
         IBP_ERROR_CODES.BROWSER_API_ERROR,
         "Advanced browser gestures are not configured",
+      ),
+    ),
+  getTerminals: () =>
+    Promise.reject(
+      new ExtensionCommandError(
+        IBP_ERROR_CODES.BROWSER_API_ERROR,
+        "Browser terminal detection is not configured",
+      ),
+    ),
+  readTerminal: () =>
+    Promise.reject(
+      new ExtensionCommandError(
+        IBP_ERROR_CODES.BROWSER_API_ERROR,
+        "Browser terminal readback is not configured",
+      ),
+    ),
+  terminalInput: () =>
+    Promise.reject(
+      new ExtensionCommandError(
+        IBP_ERROR_CODES.BROWSER_API_ERROR,
+        "Trusted browser terminal input is not configured",
       ),
     ),
   printToPdf: () =>
@@ -943,6 +1047,79 @@ export async function handleProtocolMessage(
       return createGetWordPressAdminResponse(request, data, { startedAt });
     }
 
+    if (envelope.payload.action === BROWSER_GET_FIGMA_DOCUMENT_ACTION) {
+      const startedAt = new Date();
+      const parameters = GetFigmaDocumentParametersSchema.parse(envelope.payload.parameters);
+      const request: ProtocolRequestEnvelope<typeof parameters> = {
+        ...envelope,
+        payload: { ...envelope.payload, parameters },
+      };
+      const data = GetFigmaDocumentDataSchema.parse(
+        await (dependencies.getFigmaDocument ?? unavailableBrowserCommands.getFigmaDocument)(
+          parameters,
+        ),
+      );
+      return createGetFigmaDocumentResponse(request, data, { startedAt });
+    }
+
+    if (envelope.payload.action === BROWSER_GET_FIGMA_LAYERS_ACTION) {
+      const startedAt = new Date();
+      const parameters = GetFigmaLayersParametersSchema.parse(envelope.payload.parameters);
+      const request: ProtocolRequestEnvelope<typeof parameters> = {
+        ...envelope,
+        payload: { ...envelope.payload, parameters },
+      };
+      const data = GetFigmaLayersDataSchema.parse(
+        await (dependencies.getFigmaLayers ?? unavailableBrowserCommands.getFigmaLayers)(
+          parameters,
+        ),
+      );
+      return createGetFigmaLayersResponse(request, data, { startedAt });
+    }
+
+    if (envelope.payload.action === BROWSER_GET_FIGMA_PROPERTIES_ACTION) {
+      const startedAt = new Date();
+      const parameters = GetFigmaPropertiesParametersSchema.parse(envelope.payload.parameters);
+      const request: ProtocolRequestEnvelope<typeof parameters> = {
+        ...envelope,
+        payload: { ...envelope.payload, parameters },
+      };
+      const data = GetFigmaPropertiesDataSchema.parse(
+        await (dependencies.getFigmaProperties ?? unavailableBrowserCommands.getFigmaProperties)(
+          parameters,
+        ),
+      );
+      return createGetFigmaPropertiesResponse(request, data, { startedAt });
+    }
+
+    if (envelope.payload.action === BROWSER_FIGMA_SELECT_ACTION) {
+      const startedAt = new Date();
+      const parameters = FigmaSelectParametersSchema.parse(envelope.payload.parameters);
+      const request: ProtocolRequestEnvelope<typeof parameters> = {
+        ...envelope,
+        payload: { ...envelope.payload, parameters },
+      };
+      const data = FigmaSelectDataSchema.parse(
+        await (dependencies.figmaSelect ?? unavailableBrowserCommands.figmaSelect)(parameters),
+      );
+      return createFigmaSelectResponse(request, data, { startedAt });
+    }
+
+    if (envelope.payload.action === BROWSER_FIGMA_HEALTHCHECK_ACTION) {
+      const startedAt = new Date();
+      const parameters = FigmaHealthcheckParametersSchema.parse(envelope.payload.parameters);
+      const request: ProtocolRequestEnvelope<typeof parameters> = {
+        ...envelope,
+        payload: { ...envelope.payload, parameters },
+      };
+      const data = FigmaHealthcheckDataSchema.parse(
+        await (dependencies.figmaHealthcheck ?? unavailableBrowserCommands.figmaHealthcheck)(
+          parameters,
+        ),
+      );
+      return createFigmaHealthcheckResponse(request, data, { startedAt });
+    }
+
     if (envelope.payload.action === BROWSER_WORDPRESS_LIST_TABLE_ACTION) {
       const startedAt = new Date();
       const parameters = WordPressListTableActionParametersSchema.parse(
@@ -1144,6 +1321,45 @@ export async function handleProtocolMessage(
         ),
       );
       return createPerformGestureResponse(request, data, { startedAt });
+    }
+
+    if (envelope.payload.action === BROWSER_GET_TERMINALS_ACTION) {
+      const startedAt = new Date();
+      const parameters = GetTerminalsParametersSchema.parse(envelope.payload.parameters);
+      const request: ProtocolRequestEnvelope<typeof parameters> = {
+        ...envelope,
+        payload: { ...envelope.payload, parameters },
+      };
+      const data = GetTerminalsDataSchema.parse(
+        await (dependencies.getTerminals ?? unavailableBrowserCommands.getTerminals)(parameters),
+      );
+      return createGetTerminalsResponse(request, data, { startedAt });
+    }
+
+    if (envelope.payload.action === BROWSER_READ_TERMINAL_ACTION) {
+      const startedAt = new Date();
+      const parameters = ReadTerminalParametersSchema.parse(envelope.payload.parameters);
+      const request: ProtocolRequestEnvelope<typeof parameters> = {
+        ...envelope,
+        payload: { ...envelope.payload, parameters },
+      };
+      const data = TerminalReadDataSchema.parse(
+        await (dependencies.readTerminal ?? unavailableBrowserCommands.readTerminal)(parameters),
+      );
+      return createReadTerminalResponse(request, data, { startedAt });
+    }
+
+    if (envelope.payload.action === BROWSER_TERMINAL_INPUT_ACTION) {
+      const startedAt = new Date();
+      const parameters = TerminalInputParametersSchema.parse(envelope.payload.parameters);
+      const request: ProtocolRequestEnvelope<typeof parameters> = {
+        ...envelope,
+        payload: { ...envelope.payload, parameters },
+      };
+      const data = TerminalInputDataSchema.parse(
+        await (dependencies.terminalInput ?? unavailableBrowserCommands.terminalInput)(parameters),
+      );
+      return createTerminalInputResponse(request, data, { startedAt });
     }
 
     if (envelope.payload.action === BROWSER_GET_HTTP_AUTH_STATE_ACTION) {

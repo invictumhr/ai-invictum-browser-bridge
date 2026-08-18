@@ -141,6 +141,8 @@ describe("extension protocol handler", () => {
       ],
       features: {
         persistentHttpHostAccess: true,
+        figmaDesignFiles: true,
+        agentWindow: true,
         semanticSnapshots: true,
         scopedSnapshots: true,
         compactSnapshots: true,
@@ -176,6 +178,10 @@ describe("extension protocol handler", () => {
         rawJavaScript: true,
         customControlIdentity: true,
         configurableTabActivation: true,
+        terminalAutomation: true,
+        trustedTerminalInput: true,
+        terminalBufferReadback: true,
+        terminalTransportReadback: true,
         userStop: true,
       },
     });

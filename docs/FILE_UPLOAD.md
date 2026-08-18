@@ -61,7 +61,7 @@ Errors intentionally omit the path:
 - debugger detach and content-marker cleanup paths;
 - Desktop validation of a real local fixture file;
 - emulated end-to-end transport and audit proof that `upload-one.txt` and its path are absent;
-- MCP `tools/list`: 50 tools and `invictum_set_file_input_files` present in the current advanced build;
+- MCP : 61 tools and `invictum_set_file_input_files` present in the current advanced build;
 - deterministic fixture inputs for single and multiple `.txt` uploads;
 - real-Chrome kitchen-sink proof for missing-path denial, 1-file attach, 2-file attach, native events, verified counts and unconditional unlock.
 

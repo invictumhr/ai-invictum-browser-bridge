@@ -50,6 +50,7 @@ const snapshot = (
     textLength: name.length,
     truncated: false,
     truncationReasons: [],
+    hiddenSubtreesSkipped: 0,
     detail,
   },
 });
@@ -131,6 +132,103 @@ const writeData = (response: ServerResponse, data: Record<string, unknown>): voi
 };
 
 describe("MCP ergonomic action enhancements", () => {
+  it("advertises terminal tools and maps execute_terminal to one trusted terminal input", async () => {
+    let actionRequest: Record<string, unknown> | undefined;
+    const authority = await listen(async (request, response) => {
+      if (request.method === "GET" && request.url === "/v1/health") {
+        healthResponse(response);
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/call") {
+        actionRequest = await readBody(request);
+        writeData(response, {
+          tabId: 17,
+          documentId: "terminal-document",
+          domRevision: 1,
+          terminalId: "xterm-1",
+          inputType: "text",
+          characters: 18,
+          submitted: true,
+          key: null,
+          trustedInput: true,
+          tabActivated: false,
+          output: { text: "terminal-ok" },
+        });
+        return;
+      }
+      response.writeHead(404).end();
+    });
+    const mcp = startMcp(authority.url);
+
+    try {
+      mcp.send({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: { protocolVersion: "2025-06-18", capabilities: {} },
+      });
+      await mcp.waitFor((message) => message["id"] === 1);
+      mcp.send({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
+      const listed = await mcp.waitFor((message) => message["id"] === 2);
+      const result = listed["result"] as { tools?: Array<Record<string, unknown>> } | undefined;
+      const terminalTools = (result?.tools ?? []).filter(
+        (tool) =>
+          String(tool["name"]).startsWith("invictum_") && String(tool["name"]).includes("terminal"),
+      );
+      expect(terminalTools.map((tool) => tool["name"])).toEqual(
+        expect.arrayContaining([
+          "invictum_detect_terminals",
+          "invictum_read_terminal",
+          "invictum_wait_for_terminal",
+          "invictum_type_terminal",
+          "invictum_execute_terminal",
+          "invictum_send_terminal_key",
+        ]),
+      );
+      const executeTool = terminalTools.find(
+        (tool) => tool["name"] === "invictum_execute_terminal",
+      );
+      expect(JSON.stringify(executeTool)).toContain("authorization");
+
+      mcp.send({
+        jsonrpc: "2.0",
+        id: 3,
+        method: "tools/call",
+        params: {
+          name: "invictum_execute_terminal",
+          arguments: {
+            tabId: 17,
+            documentId: "terminal-document",
+            domRevision: 1,
+            terminalId: "xterm-1",
+            command: "printf terminal-ok",
+            authorization: {
+              source: "explicit_user_instruction",
+              instructionId: "user-terminal-test",
+            },
+          },
+        },
+      });
+      const called = await mcp.waitFor((message) => message["id"] === 3);
+      expect(called).toMatchObject({ result: { structuredContent: { trustedInput: true } } });
+      expect(actionRequest).toMatchObject({
+        action: "browser.terminal_input",
+        parameters: {
+          tabId: 17,
+          terminalId: "xterm-1",
+          input: { type: "text", text: "printf terminal-ok", submit: true },
+          authorization: {
+            source: "explicit_user_instruction",
+            instructionId: "user-terminal-test",
+          },
+        },
+      });
+    } finally {
+      mcp.close();
+      await authority.close();
+    }
+  });
+
   it("uses a deterministic derived idempotency key for a safe stale-reference retry", async () => {
     const calls: Array<Record<string, unknown>> = [];
     let snapshotCount = 0;

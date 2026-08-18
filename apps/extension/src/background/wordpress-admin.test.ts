@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { TOP_FRAME_ID } from "./frames.js";
 
 import {
   GetWordPressAdminParametersSchema,
@@ -99,6 +100,7 @@ describe("ChromeWordPressAdminAdapter", () => {
         command: "get_wordpress_admin",
         parameters: { tabId: 12, maxRows: 50, maxCellText: 500 },
       }),
+      { frameId: TOP_FRAME_ID },
     );
   });
 

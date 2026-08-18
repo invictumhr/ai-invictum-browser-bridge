@@ -10,6 +10,27 @@ pnpm browser capabilities
 
 `health` proves the Desktop Authority/control API exists. `nativeConnected:true` says a Native Host connection exists. Only `ping` proves the complete path reaches the Chrome extension.
 
+## `pnpm` is not recognised
+
+The documented gates (`pnpm build`, `pnpm test`, `pnpm browser ...`) need pnpm
+on `PATH`. Node ships Corepack, which installs the version this repository pins:
+
+```powershell
+corepack enable
+corepack prepare pnpm@11.9.0 --activate
+pnpm --version
+```
+
+Without it, `turbo` also fails with `Unable to find package manager binary`,
+because it shells out to the package manager. Until Corepack is enabled you can
+run the same work per package with the local binaries:
+
+```powershell
+node apps/cli/dist/index.js health
+node_modules/.bin/tsc -p packages/protocol/tsconfig.json
+node_modules/.bin/vitest run --dir apps/extension
+```
+
 ## Control API is offline
 
 `pnpm browser ping` and the MCP server automatically start `apps/desktop/dist/index.js` in a hidden process. If auto-start fails, run `pnpm build` and retry. Check listeners without killing them:
@@ -44,6 +65,20 @@ Chrome-internal, extension, DevTools, Web Store, file and other protected scheme
 
 Do not retry or use another input path. The user must explicitly click the Invictum toolbar icon to clear the block. That click reauthorizes control but does not reserve the tab; the next targeted agent action does.
 
+## Back/Forward reports no history after `browser.navigate`
+
+Confirm that the unpacked extension was Reloaded after the latest build. The
+current adapter uses Chrome's `tabs.update({url})` navigation contract and
+installs its completion listener before triggering navigation. Older builds
+that used isolated-world `location.assign` could load the destination without
+leaving a usable Back/Forward entry in some Chrome versions. If the native tabs
+history promise still rejects immediately, the current build targets only the
+adjacent CDP history entry through its shared debugger session. This fallback
+does not run after a completion timeout and therefore does not bypass an
+unsaved-changes dialog. Do not work around a failure by activating the tab or
+sending `Alt+Left`; update/Reload the extension, then retry the typed history
+action once.
+
 ## `STALE_ELEMENT_REFERENCE`
 
 Fetch a new snapshot, find the element again, and use its new `documentId`, `domRevision`, and `elementId`. Every successful mutation intentionally invalidates the previous revision.
@@ -51,6 +86,21 @@ Fetch a new snapshot, find the element again, and use its new `documentId`, `dom
 ## `CONTENT_SCRIPT_UNAVAILABLE`
 
 Confirm the page is HTTP(S), Site access is On all sites, then refresh the tab. Reload the extension only if its extension files were rebuilt. On-demand injection replaces a stale isolated-world listener automatically.
+
+## `crypto.randomUUID is not a function` on plain HTTP/LAN pages
+
+Builds before 2026-08-17 assumed that `crypto.randomUUID()` existed inside the
+content-script execution context. Chrome does not expose that API on every
+non-secure origin, including ordinary `http://192.168.x.x` administration
+pages, so content-script initialization could fail before IBB reserved or
+inspected the tab.
+
+Current builds use a compatibility generator: native `randomUUID` on secure
+contexts, `getRandomValues` on plain HTTP when available, and a process-local
+non-security fallback for internal DOM markers. Rebuild and Reload the unpacked
+extension once, then refresh the affected page. If the extension errors page
+still shows historical entries, clear those entries and reproduce once; old
+logged errors are not evidence that the current content script failed.
 
 ## Forms and sensitive fields
 
@@ -79,6 +129,57 @@ Use `browser.handle_javascript_dialog` with the expected click/navigation as its
 Console capture, mobile preview, `inspect_element` with listeners, file upload, native dialogs, inactive-tab screenshot fallback and JavaScript actions all require Chrome's one debugger-client slot. Invictum internally shares one attachment among these actions, so its own tools can coexist. Close visible DevTools for that tab, verify the tab is a normal HTTP(S) page and retry once. If DevTools was opened after capture started, Chrome may detach the extension; `browser.console read` and `browser.emulate_device get` then report inactive state. Repeated failure indicates another external client or a Chrome policy restriction, not a reason to bypass the action.
 
 Always stop console capture and reset mobile emulation in `finally`. `unlock_tab`, lease expiry, User Stop, reauthorization and tab close also clean them automatically.
+
+## WHM terminal readback is `source:"unavailable"`
+
+Some bundled xterm versions keep their buffer constructor private, so the
+bounded public/legacy buffer reader and accessibility fallback cannot recover
+text. Do not interpret the empty result as an empty terminal. Use the dedicated
+typed terminal action, not normal DOM typing. Draft without Enter, verify the
+exact draft through a bounded screenshot using the detected
+`screenshotRegion`, send one Enter only after that verification, and inspect
+the result screenshot. A changing xterm DOM no
+longer invalidates a stable terminal reference; navigation or replacement of
+the terminal root still does.
+
+For terminal input, `deliveryVerification:"unavailable"` means Chrome accepted
+the CDP events but the page receipt cannot be observed programmatically. With
+no explicit wait, this result is intentionally immediate rather than a false
+15-second timeout. Do not resend. If a background screenshot does not show the
+draft, use the documented one-time foreground wake-up and repeat only after an
+active screenshot proves the draft was not delivered.
+
+Current builds can use a dedicated `websocket_stream` fallback during an
+authorized terminal input action. This is separate from the general
+metadata-only network tool: it selects only the single socket that carried the
+exact staged draft, bounds and redacts decoded terminal text, returns no raw
+frames, and discards capture state in `finally`. A standalone `terminal-read`
+cannot recover WebSocket frames that occurred before it started.
+
+## `TERMINAL_DELIVERY_UNVERIFIED`
+
+The adapter staged the requested text but could not observe that exact draft in
+the xterm/accessibility output or on one unambiguous terminal WebSocket. It
+therefore did not send Enter. Do not run `terminal-exec` again: the draft may
+already be present. Capture the terminal's bounded `screenshotRegion`; if the
+draft is exact, send one separately authorized Enter key. Otherwise clear the
+draft before deciding whether a new input action is safe.
+
+## A terminal command appears in WHM `Search Tools`
+
+This means the page moved keyboard focus from xterm to WHM's global search
+field. Stop immediately: do not press Enter and do not resend the command. Clear
+the misplaced draft manually if it is still present, then confirm that the
+latest extension build is loaded.
+
+Current builds focus xterm only after CDP focus emulation is ready, allow
+synchronous focus traps to settle, verify the exact helper textarea, and hold a
+short-lived xterm-only focus guard while trusted keys are delivered. The guard
+is removed immediately afterward and also has a bounded automatic expiry.
+Before Enter, focus is checked again. A failed check returns the non-retryable
+`TERMINAL_FOCUS_LOST` error and sends no further keys. Treat this error as
+uncertain partial draft delivery: inspect a bounded terminal screenshot and the
+WHM search field before deciding any next action.
 
 ## Mobile CSS viewport differs from the selected preset
 

@@ -94,10 +94,26 @@ import type {
   DeviceEmulationParameters,
   PerformGestureData,
   PerformGestureParameters,
+  GetTerminalsData,
+  GetTerminalsParameters,
+  TerminalReadData,
+  ReadTerminalParameters,
+  TerminalInputData,
+  TerminalInputParameters,
   PrintToPdfData,
   PrintToPdfParameters,
   PageApiRequestData,
   PageApiRequestParameters,
+  GetFigmaDocumentParameters,
+  GetFigmaDocumentData,
+  GetFigmaLayersParameters,
+  GetFigmaLayersData,
+  GetFigmaPropertiesParameters,
+  GetFigmaPropertiesData,
+  FigmaSelectParameters,
+  FigmaSelectData,
+  FigmaHealthcheckParameters,
+  FigmaHealthcheckData,
 } from "./schemas.js";
 
 export const SYSTEM_PING_ACTION = "system.ping";
@@ -130,6 +146,11 @@ export const BROWSER_GET_WORDPRESS_ADMIN_ACTION = "browser.get_wordpress_admin";
 export const BROWSER_WORDPRESS_LIST_TABLE_ACTION = "browser.wordpress_list_table_action";
 export const BROWSER_GET_WORDPRESS_EDITOR_ACTION = "browser.get_wordpress_editor";
 export const BROWSER_EDIT_WORDPRESS_EDITOR_ACTION = "browser.edit_wordpress_editor";
+export const BROWSER_GET_FIGMA_DOCUMENT_ACTION = "browser.get_figma_document";
+export const BROWSER_GET_FIGMA_LAYERS_ACTION = "browser.get_figma_layers";
+export const BROWSER_GET_FIGMA_PROPERTIES_ACTION = "browser.get_figma_properties";
+export const BROWSER_FIGMA_SELECT_ACTION = "browser.figma_select";
+export const BROWSER_FIGMA_HEALTHCHECK_ACTION = "browser.figma_healthcheck";
 export const BROWSER_EVALUATE_ACTION = "browser.evaluate";
 export const BROWSER_MUTATE_DOM_ACTION = "browser.mutate_dom";
 export const BROWSER_INSPECT_ELEMENT_ACTION = "browser.inspect_element";
@@ -145,6 +166,9 @@ export const BROWSER_CONSOLE_ACTION = "browser.console";
 export const BROWSER_NETWORK_ACTION = "browser.network";
 export const BROWSER_EMULATE_DEVICE_ACTION = "browser.emulate_device";
 export const BROWSER_PERFORM_GESTURE_ACTION = "browser.perform_gesture";
+export const BROWSER_GET_TERMINALS_ACTION = "browser.get_terminals";
+export const BROWSER_READ_TERMINAL_ACTION = "browser.read_terminal";
+export const BROWSER_TERMINAL_INPUT_ACTION = "browser.terminal_input";
 export const BROWSER_PRINT_TO_PDF_ACTION = "browser.print_to_pdf";
 export const BROWSER_PAGE_API_REQUEST_ACTION = "browser.page_api_request";
 
@@ -1225,6 +1249,72 @@ export function createPerformGestureResponse(
   return createTimedSuccessResponse(request, data, options);
 }
 
+export function createGetTerminalsRequest(
+  sessionId: string,
+  parameters: GetTerminalsParameters,
+  options?: MessageFactoryOptions & { timeoutMs?: number },
+): ProtocolRequestEnvelope<GetTerminalsParameters> {
+  return createBrowserInteractionRequest(
+    sessionId,
+    BROWSER_GET_TERMINALS_ACTION,
+    parameters,
+    "Detect supported terminal widgets without reading terminal output",
+    options,
+  );
+}
+
+export function createGetTerminalsResponse(
+  request: ProtocolRequestEnvelope<GetTerminalsParameters>,
+  data: GetTerminalsData,
+  options?: MessageFactoryOptions & { startedAt?: Date },
+): ProtocolResponseEnvelope<GetTerminalsData> {
+  return createTimedSuccessResponse(request, data, options);
+}
+
+export function createReadTerminalRequest(
+  sessionId: string,
+  parameters: ReadTerminalParameters,
+  options?: MessageFactoryOptions & { timeoutMs?: number },
+): ProtocolRequestEnvelope<ReadTerminalParameters> {
+  return createBrowserInteractionRequest(
+    sessionId,
+    BROWSER_READ_TERMINAL_ACTION,
+    parameters,
+    "Read explicitly authorized, bounded, redacted terminal output",
+    { ...options, timeoutMs: options?.timeoutMs ?? parameters.timeoutMs + 5_000 },
+  );
+}
+
+export function createReadTerminalResponse(
+  request: ProtocolRequestEnvelope<ReadTerminalParameters>,
+  data: TerminalReadData,
+  options?: MessageFactoryOptions & { startedAt?: Date },
+): ProtocolResponseEnvelope<TerminalReadData> {
+  return createTimedSuccessResponse(request, data, options);
+}
+
+export function createTerminalInputRequest(
+  sessionId: string,
+  parameters: TerminalInputParameters,
+  options?: MessageFactoryOptions & { timeoutMs?: number },
+): ProtocolRequestEnvelope<TerminalInputParameters> {
+  return createBrowserInteractionRequest(
+    sessionId,
+    BROWSER_TERMINAL_INPUT_ACTION,
+    parameters,
+    "Send explicitly authorized trusted keyboard input to one revision-bound terminal",
+    { ...options, timeoutMs: options?.timeoutMs ?? parameters.timeoutMs + 5_000 },
+  );
+}
+
+export function createTerminalInputResponse(
+  request: ProtocolRequestEnvelope<TerminalInputParameters>,
+  data: TerminalInputData,
+  options?: MessageFactoryOptions & { startedAt?: Date },
+): ProtocolResponseEnvelope<TerminalInputData> {
+  return createTimedSuccessResponse(request, data, options);
+}
+
 export function createPrintToPdfRequest(
   sessionId: string,
   parameters: PrintToPdfParameters,
@@ -1417,4 +1507,114 @@ export function createHeartbeatEvent(
       data: { component, status: "alive" },
     },
   };
+}
+
+export function createGetFigmaDocumentRequest(
+  sessionId: string,
+  parameters: GetFigmaDocumentParameters,
+  options?: MessageFactoryOptions & { timeoutMs?: number },
+): ProtocolRequestEnvelope<GetFigmaDocumentParameters> {
+  return createBrowserInteractionRequest(
+    sessionId,
+    BROWSER_GET_FIGMA_DOCUMENT_ACTION,
+    parameters,
+    "Read the page list, mode, and current selection of an open Figma design file",
+    options,
+  );
+}
+
+export function createGetFigmaDocumentResponse(
+  request: ProtocolRequestEnvelope<GetFigmaDocumentParameters>,
+  data: GetFigmaDocumentData,
+  options?: MessageFactoryOptions & { startedAt?: Date },
+): ProtocolResponseEnvelope<GetFigmaDocumentData> {
+  return createTimedSuccessResponse(request, data, options);
+}
+
+export function createGetFigmaLayersRequest(
+  sessionId: string,
+  parameters: GetFigmaLayersParameters,
+  options?: MessageFactoryOptions & { timeoutMs?: number },
+): ProtocolRequestEnvelope<GetFigmaLayersParameters> {
+  return createBrowserInteractionRequest(
+    sessionId,
+    BROWSER_GET_FIGMA_LAYERS_ACTION,
+    parameters,
+    "Read the rendered rows of the Figma layer tree for the current page",
+    options,
+  );
+}
+
+export function createGetFigmaLayersResponse(
+  request: ProtocolRequestEnvelope<GetFigmaLayersParameters>,
+  data: GetFigmaLayersData,
+  options?: MessageFactoryOptions & { startedAt?: Date },
+): ProtocolResponseEnvelope<GetFigmaLayersData> {
+  return createTimedSuccessResponse(request, data, options);
+}
+
+export function createGetFigmaPropertiesRequest(
+  sessionId: string,
+  parameters: GetFigmaPropertiesParameters,
+  options?: MessageFactoryOptions & { timeoutMs?: number },
+): ProtocolRequestEnvelope<GetFigmaPropertiesParameters> {
+  return createBrowserInteractionRequest(
+    sessionId,
+    BROWSER_GET_FIGMA_PROPERTIES_ACTION,
+    parameters,
+    "Read the properties of the current Figma selection, preferring Dev Mode CSS",
+    options,
+  );
+}
+
+export function createGetFigmaPropertiesResponse(
+  request: ProtocolRequestEnvelope<GetFigmaPropertiesParameters>,
+  data: GetFigmaPropertiesData,
+  options?: MessageFactoryOptions & { startedAt?: Date },
+): ProtocolResponseEnvelope<GetFigmaPropertiesData> {
+  return createTimedSuccessResponse(request, data, options);
+}
+
+export function createFigmaSelectRequest(
+  sessionId: string,
+  parameters: FigmaSelectParameters,
+  options?: MessageFactoryOptions & { timeoutMs?: number },
+): ProtocolRequestEnvelope<FigmaSelectParameters> {
+  return createBrowserInteractionRequest(
+    sessionId,
+    BROWSER_FIGMA_SELECT_ACTION,
+    parameters,
+    "Switch the Figma page, mode, or selected layer through its own controls",
+    options,
+  );
+}
+
+export function createFigmaSelectResponse(
+  request: ProtocolRequestEnvelope<FigmaSelectParameters>,
+  data: FigmaSelectData,
+  options?: MessageFactoryOptions & { startedAt?: Date },
+): ProtocolResponseEnvelope<FigmaSelectData> {
+  return createTimedSuccessResponse(request, data, options);
+}
+
+export function createFigmaHealthcheckRequest(
+  sessionId: string,
+  parameters: FigmaHealthcheckParameters,
+  options?: MessageFactoryOptions & { timeoutMs?: number },
+): ProtocolRequestEnvelope<FigmaHealthcheckParameters> {
+  return createBrowserInteractionRequest(
+    sessionId,
+    BROWSER_FIGMA_HEALTHCHECK_ACTION,
+    parameters,
+    "Verify that every Figma UI anchor the adapter depends on still resolves",
+    options,
+  );
+}
+
+export function createFigmaHealthcheckResponse(
+  request: ProtocolRequestEnvelope<FigmaHealthcheckParameters>,
+  data: FigmaHealthcheckData,
+  options?: MessageFactoryOptions & { startedAt?: Date },
+): ProtocolResponseEnvelope<FigmaHealthcheckData> {
+  return createTimedSuccessResponse(request, data, options);
 }

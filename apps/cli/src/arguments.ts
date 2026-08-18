@@ -105,3 +105,51 @@ export const buildWaitParameters = (
   }
   throw new Error("wait type must be url, title, selector, text, or dom_stable");
 };
+
+/**
+ * Every flag the CLI understands. The control API rejects unknown parameter
+ * keys, so the CLI rejecting unknown flags keeps the two consistent: a
+ * mistyped or unsupported flag used to be dropped without a word, which looked
+ * like the flag had been honoured.
+ */
+export const KNOWN_CLI_FLAGS: ReadonlySet<string> = new Set([
+  "--active",
+  "--alt",
+  "--append",
+  "--auto-marks",
+  "--background",
+  "--clear",
+  "--ctrl",
+  "--document",
+  "--dom-delta",
+  "--dry-run",
+  "--full-page",
+  "--help",
+  "--idempotency-key",
+  "--instruction",
+  "--landscape",
+  "--legal",
+  "--letter",
+  "--lines",
+  "--meta",
+  "--post-snapshot",
+  "--pretty",
+  "--region",
+  "--save",
+  "--scrollback",
+  "--shift",
+  "--status-only",
+  "--stdin",
+  "--terminal",
+  "--text",
+  "--timings",
+  "--url",
+  "--verify",
+  "--wait-prompt",
+  "--wait-quiet",
+  "--wait-text",
+  "--wp-nonce",
+]);
+
+export const unknownFlags = (values: readonly string[]): string[] =>
+  values.filter((value) => value.startsWith("--") && !KNOWN_CLI_FLAGS.has(value));

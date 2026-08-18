@@ -9,6 +9,7 @@ import {
 } from "@invictum/protocol";
 
 import { ExtensionCommandError } from "./command-error.js";
+import { TOP_FRAME_ID } from "./frames.js";
 import { isChromePageAccessDenied, pageAccessDeniedMessage } from "./page-access.js";
 
 const CONTENT_CHANNEL = "invictum.browser.snapshot.v1";
@@ -22,12 +23,16 @@ const contentCommand = async (
   parameters: unknown,
 ): Promise<unknown> => {
   const requestId = crypto.randomUUID();
-  const raw = await chrome.tabs.sendMessage(tabId, {
-    channel: CONTENT_CHANNEL,
-    command,
-    requestId,
-    parameters,
-  });
+  const raw = await chrome.tabs.sendMessage(
+    tabId,
+    {
+      channel: CONTENT_CHANNEL,
+      command,
+      requestId,
+      parameters,
+    },
+    { frameId: TOP_FRAME_ID },
+  );
   if (!isRecord(raw) || raw["requestId"] !== requestId || typeof raw["ok"] !== "boolean") {
     throw new ExtensionCommandError(
       IBP_ERROR_CODES.INVALID_MESSAGE,

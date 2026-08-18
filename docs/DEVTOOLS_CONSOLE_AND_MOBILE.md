@@ -211,7 +211,11 @@ After reloading `apps/extension/dist` once:
 powershell -ExecutionPolicy Bypass -File .\scripts\verify-after-reload.ps1
 ```
 
-The post-Reload gate expects 46 extension actions and 50 MCP tools. Its real-Chrome kitchen-sink test starts console capture, generates and reads an error, applies a 390 × 844 touch viewport, captures a mobile screenshot, resets to desktop, and then continues normal semantic/visual and WordPress admin/editor interaction tests. Its disposable tab is explicitly closed in `finally`.
+The post-Reload gate expects 54 extension actions and 61 MCP tools. Its
+real-Chrome kitchen-sink and terminal tests cover console capture, mobile
+emulation, semantic/visual and WordPress workflows, plus non-activating trusted
+xterm input and bounded redacted readback. Disposable tabs are explicitly
+closed in `finally`.
 
 Official API references:
 

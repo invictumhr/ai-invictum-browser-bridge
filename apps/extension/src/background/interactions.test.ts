@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { TOP_FRAME_ID } from "./frames.js";
 
 import {
   ClickElementDataSchema,
@@ -344,7 +345,9 @@ describe("ChromeInteractionsAdapter", () => {
     await expect(new ChromeInteractionsAdapter().clickAt(parameters)).resolves.toMatchObject({
       coordinates: { x: 120, y: 240 },
     });
-    expect(sendMessage).toHaveBeenCalledWith(3, expect.objectContaining({ command: "click_at" }));
+    expect(sendMessage).toHaveBeenCalledWith(3, expect.objectContaining({ command: "click_at" }), {
+      frameId: TOP_FRAME_ID,
+    });
   });
 
   it("denies an inactive interaction when Chrome rejects script injection", async () => {

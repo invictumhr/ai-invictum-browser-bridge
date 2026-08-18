@@ -1,31 +1,115 @@
 # Real-Chrome and PageSpeed test report
 
-Last updated: 2026-07-24 (Europe/Zagreb).
+Last updated: 2026-08-17 (Europe/Zagreb).
 
-Current prepared source status: the build exposes exactly 46 runtime actions
-and 50 MCP tools. In addition to the previously real-Chrome-verified
+The current prepared source adds bounded terminal-transport readback for WHM
+builds that hide their xterm instance. During one authorized input action it
+observes WebSocket frames only on the target tab, selects a socket only when it
+uniquely carried the exact staged draft, never returns raw frames, redacts the
+bounded decoded stream, and discards capture state in `finally`. Submitted text
+now requires `buffer_observed` or `transport_observed` draft proof before Enter;
+otherwise non-retryable `TERMINAL_DELIVERY_UNVERIFIED` leaves the draft staged
+and sends no Enter. Focused protocol, transport, ambiguity, cleanup, redaction,
+and fail-closed unit tests pass. This source requires Reload before live WHM
+transport evidence is claimed.
+
+The reloaded extension also fixes a live-observed WHM focus race where trusted
+terminal text could be redirected into the global `Search Tools` field. Input
+now focuses xterm only after CDP focus emulation is ready, settles and verifies
+the selected helper, holds a bounded xterm-only focus guard during key
+delivery, and verifies again before Enter. Failure returns non-retryable
+`TERMINAL_FOCUS_LOST` and sends no further keys. The 2026-08-17 live regression
+test typed a 29-code-point harmless draft without Enter into a new WHM tab. A
+terminal-region capture showed the complete draft at the xterm prompt while a
+simultaneous viewport capture showed the global search field empty. Trusted
+`Ctrl+U` then cleared the draft, a final crop confirmed the clean prompt, and
+the disposable tab was unlocked and closed. No server command was executed.
+
+Current prepared source status: the build exposes exactly 54 runtime actions
+and 61 MCP tools. In addition to the previously real-Chrome-verified
 upload/WordPress/DOM/CSS/events/identity/settings/console/network/device/
 gesture/PDF/screenshot features, the source now includes clean page text,
 deterministic natural-language element discovery, non-activating back/forward
 navigation, explicit tab activation, modifier keys, double/context click,
 absolute scrolling, an explicitly authorized same-origin page API, and
-policy-preserving MCP/CLI/SDK batches. These new source capabilities have
-passed offline type, unit and integration checks but are intentionally not
-claimed as loaded real-Chrome evidence until the user Reloads the unpacked
-extension and the post-Reload gate runs.
+policy-preserving MCP/CLI/SDK batches. The current source also includes typed
+xterm/WHM discovery, bounded redacted buffer readback, trusted terminal input,
+terminal waits, and a deterministic local terminal smoke fixture. The terminal
+adapter is now loaded and verified against a live WHM/cPanel xterm. The other
+new source capabilities have passed offline type, unit and integration checks;
+their individual sections below remain authoritative for loaded real-Chrome
+coverage.
 
-The 2026-07-24 post-Reload run reached the current 46-action contract and
+The same pending build removes a plain-HTTP compatibility failure where Chrome
+did not expose `crypto.randomUUID()` on a LAN origin. All content-script IDs now
+use a tested compatibility generator, so initialization, inspection, event
+capture, and file-upload preparation work on non-secure HTTP administration
+pages without weakening any authentication or authorization boundary.
+
+A live WHM terminal check found three vendor-specific issues: xterm helper
+mutations invalidated the global revision, `Input.insertText` did not insert
+text, and Chrome rejected a multi-character CDP `char` event. Source now binds
+references to a stable per-root terminal identity within the same document and
+sends one trusted CDP character event per Unicode code point. After Reload, the
+live gate successfully entered and executed bounded read-only `df`, `repquota`,
+`du`, and `find` diagnostics, with every draft visually verified before exactly
+one Enter. The WHM xterm reported `source:"unavailable"` for programmatic
+readback, so result screenshots were used instead of interpreting empty text.
+The initial command worked in the background; after an explicit same-page
+navigation, this WHM build required one temporary activation before it accepted
+and painted further input. The previously active user tab was restored after
+each bounded foreground interaction, and the WHM reservation was explicitly
+unlocked. The loaded extension therefore has real-Chrome evidence for stable
+terminal references, per-character trusted input, safe screenshot fallback,
+foreground escalation, focus restoration, and cleanup.
+
+The follow-up source hardening removes a live-observed ergonomics penalty:
+implicit draft/prompt verification no longer polls for 15 seconds when the
+baseline already proves that readback is unavailable. Terminal input now
+returns `deliveryVerification` as `observed`, `not_requested`, `unavailable`,
+or `timed_out`, and printable-character counts use Unicode code points rather
+than UTF-16 code units. Detection also returns a content-free
+document-coordinate `screenshotRegion`, allowing future fallback captures to
+exclude unrelated WHM UI.
+
+The 2026-08-17 post-Reload live verification confirmed that complete contract
+on the existing WHM/cPanel terminal without executing a server command. A
+13-code-point draft returned in 354 ms with
+`deliveryVerification:"unavailable"`, `matched:false`, and `timedOut:false`;
+the detected 1413 x 414 document-coordinate `screenshotRegion` produced a
+terminal-only JPEG that visibly contained the draft while the tab remained in
+the background. A trusted `Ctrl+U` then cleared the draft, a second terminal-only
+capture confirmed the empty prompt, and the tab was unlocked. No Enter was
+sent and the user's active tab never changed.
+
+That run also exposed an older Desktop Authority process still holding the
+pre-build protocol validator after the extension Reload. The post-Reload
+verification script now compares the running authority start time with every
+direct built runtime dependency and safely restarts only a verified
+project-owned stale authority before running contract checks. This prevents an
+additive extension response field from being rejected by an older local daemon.
+
+The 2026-07-24 post-Reload run reached the then-current 46-action contract and
 verified the one-based WordPress menu-position fix in real Chrome: the first
 unrelated item remained first after moving a subtree below **Info**, the
 submitted form contained positions 1–5, and the post-submit typed tree
-preserved the complete subtree. Follow-up history testing separated two
-problems: the completion-listener race and Chrome replacing the initial entry
-when an extension navigates a newly opened tab with `tabs.update({url})`.
-Source now installs the listener before the trigger, requires evidence of the
-new load, and uses document-level `location.assign` for existing-tab
-navigation. This preserves a real Back/Forward entry without activating the
-tab. The final implementation has full offline coverage and needs one more
-Reload before the complete real-Chrome verifier is repeated.
+preserved the complete subtree.
+
+The 2026-08-17 complete post-Reload gate then caught the remaining history
+regression before continuing past its navigation stage. Both an IBB
+`browser.navigate` call and a direct fixture link changed the background test
+document, but `chrome.tabs.goBack` reported that no previous entry was
+available. This disproved the earlier isolated-world `location.assign`
+workaround. Source now retains the listener-before-trigger completion fix and
+uses Chrome's documented `chrome.tabs.update({url})` navigation contract. The
+next Reload proved that the native `tabs.goBack` promise still rejected, even
+after a deliberately idle seven-second interval. The prepared source therefore
+adds a bounded fallback that reads `Page.getNavigationHistory` and targets only
+the adjacent entry with `Page.navigateToHistoryEntry` when the tabs promise
+rejects immediately. It does not run for a navigation timeout and cannot bypass
+the explicitly armed `beforeunload` workflow. Nine focused navigation tests plus
+extension typecheck/build pass; the fallback requires one final Reload before
+the complete real-Chrome gate can continue past Back/Forward.
 
 The most recently loaded real-Chrome gate verified background tab operation,
 local upload, snapshots, forms, ordinary and model-backed editors, Shadow DOM,
@@ -42,6 +126,20 @@ See [FILE_UPLOAD.md](FILE_UPLOAD.md),
 [DEVTOOLS_CONSOLE_AND_MOBILE.md](DEVTOOLS_CONSOLE_AND_MOBILE.md), and
 [SCREENSHOTS_AND_ANNOTATIONS.md](SCREENSHOTS_AND_ANNOTATIONS.md).
 
+The 2026-08-17 navigation-fallback Reload passed the complete kitchen-sink
+gate, including Back/Forward without tab activation and the explicitly armed
+`beforeunload` flow. The following deterministic terminal fixture then exposed
+a separate Chrome behavior: the xterm buffer was readable, but trusted Input
+events were not delivered to its genuinely background helper textarea. Source
+now wraps terminal input in bounded
+`Emulation.setFocusEmulationEnabled(true/false)` calls, with cleanup in
+`finally`, so the page can receive keyboard events without selecting its tab.
+After the final Reload, the deterministic real-Chrome terminal smoke passed:
+one canvas xterm was detected, `source:"xterm_buffer"` readback observed the
+command output and prompt, trusted input remained true, `tabActivated` remained
+false, and two fixture secrets were redacted. The test tab and fixture server
+were then closed normally.
+
 ## Scope
 
 This report covers the persistent chain `agent/CLI/MCP -> control API :47820 -> Desktop Authority -> Native Host :47821 -> reloaded Chrome extension`. Tests used the user's normal Chrome profile, deterministic local fixtures on `127.0.0.1:47822`/`:47823`, `example.com`, and the live Google PageSpeed Insights UI.
@@ -54,11 +152,13 @@ No test connected directly to the Native Messaging port. Every reserved tab was 
 - `system.ping`: full extension round trip returned `pong`.
 - Loaded `system.capabilities` after the final 2026-07-23 Reload: exactly 30 unique actions.
 - Loaded feature flags include `localFileUpload`, `elementInspection`, `domMutation`, `cssInjection`, `eventCapture`, `browserConsole`, `deviceEmulation`, `rawJavaScript`, `customControlIdentity`, `configurableTabActivation`, compact/outline snapshots, safe previous-revision relocation, structured parameter errors, persistent host access, screenshots, coordinate fallback, auth/dialog support and User Stop.
-- Current source MCP stdio returns exactly 50 tools, including local upload,
+- Current source MCP stdio returns exactly 61 tools, including local upload,
   custom control identity, clean text, natural-language find, history
   navigation, explicit activation, same-origin page API, batching, console and
   metadata-only network capture, device emulation, gestures, PDF export, and
   dedicated tools for advanced DOM/CSS/event/JavaScript actions.
+  Six terminal tools cover detection, read, wait, draft text, one-shot command
+  execution, and bounded special-key input.
 - The one-step verifier also detected and repaired an older Desktop Authority process whose result schema predated the five feature flags; the restarted current Authority then accepted the capability response and completed the full extension ping.
 
 ## Deterministic kitchen-sink validation
@@ -128,8 +228,8 @@ The current source build contains the advanced DOM actions plus R0
 `browser.set_control_identity`, R0 `browser.console`, R0 `browser.network`, R1
 `browser.emulate_device`, R1 `browser.perform_gesture`, R0
 `browser.print_to_pdf`, clean text/find helpers, history/activation, and the R3
-same-origin page API. The built MCP server returns 50 tools and the extension
-reports 46 actions. A source-only change is not considered loaded real-Chrome
+same-origin page API. The built MCP server returns 61 tools and the extension
+reports 54 actions. A source-only change is not considered loaded real-Chrome
 evidence until the user Reloads the unpacked extension.
 
 Offline gates passed on the prepared DOM-parser build on 2026-07-23:
@@ -216,7 +316,7 @@ Exact compact JSON measurements are maintained in [SNAPSHOT_SIZE_BENCHMARK.md](S
 - production build: 11/11 packages;
 - built extension contains all six new runtime action markers plus expanded
   gesture markers;
-- built MCP `tools/list` returned exactly 50 tools;
+- built MCP `tools/list` returned exactly 61 tools;
 - upload-specific real-Chrome confirmation: passed;
 - constrained evaluator, typed DOM mutation, HTML/CSS sanitization and delegated listener metadata: passed in real Chrome;
 - custom identity, final listener source, events, page-wide CSS, raw JavaScript and cleanup in real Chrome: passed.

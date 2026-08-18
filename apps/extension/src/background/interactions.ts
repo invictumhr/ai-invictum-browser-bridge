@@ -24,6 +24,7 @@ import {
 } from "@invictum/protocol";
 
 import { ExtensionCommandError } from "./command-error.js";
+import { TOP_FRAME_ID } from "./frames.js";
 import { isChromePageAccessDenied, pageAccessDeniedMessage } from "./page-access.js";
 
 const CONTENT_CHANNEL = "invictum.browser.snapshot.v1";
@@ -527,12 +528,16 @@ export class ChromeInteractionsAdapter {
           target: { tabId: parameters.tabId },
           files: ["content.js"],
         });
-        rawResponse = await chrome.tabs.sendMessage(parameters.tabId, {
-          channel: CONTENT_CHANNEL,
-          command,
-          requestId,
-          parameters,
-        });
+        rawResponse = await chrome.tabs.sendMessage(
+          parameters.tabId,
+          {
+            channel: CONTENT_CHANNEL,
+            command,
+            requestId,
+            parameters,
+          },
+          { frameId: TOP_FRAME_ID },
+        );
       } finally {
         if (formGuardToken !== undefined) {
           const restored = await chrome.scripting.executeScript({

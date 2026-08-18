@@ -132,6 +132,17 @@ import {
   createWordPressListTableActionRequest,
   createGetWordPressEditorRequest,
   createEditWordPressEditorRequest,
+  BROWSER_GET_TERMINALS_ACTION,
+  BROWSER_READ_TERMINAL_ACTION,
+  BROWSER_TERMINAL_INPUT_ACTION,
+  GetTerminalsDataSchema,
+  ReadTerminalParametersSchema,
+  TerminalInputDataSchema,
+  TerminalInputParametersSchema,
+  TerminalReadDataSchema,
+  createGetTerminalsRequest,
+  createReadTerminalRequest,
+  createTerminalInputRequest,
 } from "./index.js";
 import type { IbpProtocolError } from "./index.js";
 
@@ -176,6 +187,8 @@ describe("IBP protocol validation", () => {
       ],
       features: {
         persistentHttpHostAccess: true,
+        figmaDesignFiles: true,
+        agentWindow: true,
         semanticSnapshots: true,
         scopedSnapshots: true,
         compactSnapshots: true,
@@ -211,6 +224,10 @@ describe("IBP protocol validation", () => {
         rawJavaScript: true,
         customControlIdentity: true,
         configurableTabActivation: true,
+        terminalAutomation: true,
+        trustedTerminalInput: true,
+        terminalBufferReadback: true,
+        terminalTransportReadback: true,
         userStop: true,
       },
     });
@@ -252,6 +269,136 @@ describe("IBP protocol validation", () => {
       scope: { documentId: "document-1", domRevision: 4, elementId: "element-8" },
     });
     expect(scoped.scope?.elementId).toBe("element-8");
+  });
+
+  it("validates typed, revision-bound terminal discovery, readback, and trusted input", () => {
+    const authorization = {
+      source: "explicit_user_instruction" as const,
+      instructionId: "user-terminal-fixture",
+    };
+    const detected = GetTerminalsDataSchema.parse({
+      tabId: 7,
+      origin: "https://example.test",
+      documentId: "terminal-document",
+      domRevision: 2,
+      terminals: [
+        {
+          terminalId: "xterm-1",
+          engine: "xterm",
+          renderer: "canvas",
+          documentId: "terminal-document",
+          domRevision: 2,
+          index: 0,
+          focused: false,
+          inputAvailable: true,
+          trustedInputAvailable: true,
+          bufferReadbackAvailable: true,
+          screenshotRegion: {
+            x: 120,
+            y: 240,
+            width: 960,
+            height: 480,
+            coordinateSpace: "document",
+          },
+          columns: null,
+          rows: null,
+        },
+      ],
+      count: 1,
+    });
+    expect(createGetTerminalsRequest("session", { tabId: 7 }).payload.action).toBe(
+      BROWSER_GET_TERMINALS_ACTION,
+    );
+    expect(detected.terminals[0]?.terminalId).toBe("xterm-1");
+
+    const read = ReadTerminalParametersSchema.parse({
+      tabId: 7,
+      documentId: "terminal-document",
+      domRevision: 2,
+      terminalId: "xterm-1",
+      waitFor: { type: "prompt" },
+      authorization,
+    });
+    expect(createReadTerminalRequest("session", read).payload.action).toBe(
+      BROWSER_READ_TERMINAL_ACTION,
+    );
+    expect(read).toMatchObject({ maxLines: 80, includeScrollback: false, timeoutMs: 10_000 });
+
+    const input = TerminalInputParametersSchema.parse({
+      tabId: 7,
+      documentId: "terminal-document",
+      domRevision: 2,
+      terminalId: "xterm-1",
+      input: { type: "text", text: "printf terminal-ok", submit: true },
+      authorization,
+    });
+    expect(createTerminalInputRequest("session", input).payload.action).toBe(
+      BROWSER_TERMINAL_INPUT_ACTION,
+    );
+    expect(() =>
+      TerminalInputParametersSchema.parse({
+        ...input,
+        input: { type: "text", text: "printf unsafe\n", submit: false },
+      }),
+    ).toThrow("control characters");
+
+    expect(
+      TerminalInputDataSchema.parse({
+        tabId: 7,
+        documentId: "terminal-document",
+        domRevision: 2,
+        terminalId: "xterm-1",
+        inputType: "text",
+        characters: 6,
+        submitted: true,
+        key: null,
+        trustedInput: true,
+        tabActivated: false,
+        draftVerification: "unavailable",
+        deliveryVerification: "unavailable",
+        output: {
+          tabId: 7,
+          origin: "https://example.test",
+          documentId: "terminal-document",
+          domRevision: 2,
+          terminalId: "xterm-1",
+          source: "unavailable",
+          buffer: "unknown",
+          columns: null,
+          rows: null,
+          cursor: null,
+          lines: [""],
+          text: "",
+          lineCount: 1,
+          truncated: false,
+          redactionsApplied: 0,
+          matched: false,
+          timedOut: false,
+        },
+      }).deliveryVerification,
+    ).toBe("unavailable");
+
+    expect(
+      TerminalReadDataSchema.parse({
+        tabId: 7,
+        origin: "https://example.test",
+        documentId: "terminal-document",
+        domRevision: 2,
+        terminalId: "xterm-1",
+        source: "xterm_buffer",
+        buffer: "normal",
+        columns: 80,
+        rows: 24,
+        cursor: { x: 2, y: 4 },
+        lines: ["terminal-ok", "fixture@test:~$"],
+        text: "terminal-ok\nfixture@test:~$",
+        lineCount: 2,
+        truncated: false,
+        redactionsApplied: 0,
+        matched: true,
+        timedOut: false,
+      }).source,
+    ).toBe("xterm_buffer");
   });
 
   it("rejects unknown envelope fields", () => {
@@ -928,7 +1075,7 @@ describe("IBP protocol validation", () => {
       detail: "interactive",
       includeHidden: false,
       maxElements: 1_000,
-      maxDepth: 32,
+      maxDepth: 64,
       maxTextLength: 50_000,
     });
     const request = createPageSnapshotRequest("snapshot-session", parameters, {
@@ -1045,6 +1192,7 @@ describe("IBP protocol validation", () => {
         textLength: 4,
         truncated: true,
         truncationReasons: ["field_text_limit"],
+        hiddenSubtreesSkipped: 0,
         detail: "outline",
       },
     });

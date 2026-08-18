@@ -617,10 +617,12 @@ export class EnhancedActionRunner {
         tabId,
         documentId: snapshot["metadata"]["documentId"],
         domRevision: snapshot["metadata"]["domRevision"],
-        role: previous.role,
-        name: previous.name,
-        tag: previous.tag,
-        frameId: previous.frameId,
+        ...(previous.role.length === 0 || previous.role === "generic"
+          ? {}
+          : { role: previous.role }),
+        ...(previous.name.length === 0 ? {} : { name: previous.name }),
+        ...(previous.tag.length === 0 ? {} : { tag: previous.tag }),
+        ...(previous.frameId.length === 0 ? {} : { frameId: previous.frameId }),
         ...(previous.css === undefined ? {} : { css: previous.css }),
         matchMode: "exact",
         maxResults: 2,

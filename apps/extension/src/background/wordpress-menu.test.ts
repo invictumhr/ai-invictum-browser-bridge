@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { TOP_FRAME_ID } from "./frames.js";
 
 import {
   EditWordPressMenuParametersSchema,
@@ -72,6 +73,7 @@ describe("ChromeWordPressMenuAdapter", () => {
         command: "get_wordpress_menu",
         parameters: { tabId: 9, maxItems: 250 },
       }),
+      { frameId: TOP_FRAME_ID },
     );
   });
 

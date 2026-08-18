@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { limitFindMatches } from "./find-limit.js";
+import { limitFindMatches, relevantFindTruncationReasons } from "./find-limit.js";
 
 describe("find match limiting", () => {
   it("does not call one complete match truncated when the page scan was incomplete", () => {
@@ -23,5 +23,21 @@ describe("find match limiting", () => {
       scanTruncated: false,
       truncationReasons: [],
     });
+  });
+
+  it("does not conflate unrelated field clipping with an incomplete structural scan", () => {
+    expect(limitFindMatches(["terminal"], 50, false, [])).toEqual({
+      matches: ["terminal"],
+      count: 1,
+      truncated: false,
+      matchesTruncated: false,
+      scanTruncated: false,
+      truncationReasons: [],
+    });
+    expect(relevantFindTruncationReasons(["field_text_limit"], false)).toEqual([]);
+    expect(relevantFindTruncationReasons(["field_text_limit"], true)).toEqual(["field_text_limit"]);
+    expect(relevantFindTruncationReasons(["max_elements", "max_text_length"], false)).toEqual([
+      "max_elements",
+    ]);
   });
 });

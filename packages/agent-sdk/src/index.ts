@@ -1,4 +1,11 @@
 import { randomUUID } from "node:crypto";
+import type {
+  GetTerminalsData,
+  ReadTerminalInput,
+  TerminalInputInput,
+  TerminalInputData,
+  TerminalReadData,
+} from "@invictum/protocol";
 
 import { EnhancedActionRunner, type EnhancedActionHooks } from "./enhanced-actions.js";
 
@@ -298,6 +305,35 @@ export class InvictumControlClient {
     input: Record<string, unknown> & { tabId: number; url: string },
   ): Promise<Record<string, unknown>> {
     return this.call("browser.page_api_request", input);
+  }
+
+  public async getTerminals(tabId: number): Promise<GetTerminalsData> {
+    return this.call("browser.get_terminals", { tabId });
+  }
+
+  public async readTerminal(input: ReadTerminalInput): Promise<TerminalReadData> {
+    return this.call("browser.read_terminal", input);
+  }
+
+  public async terminalInput(input: TerminalInputInput): Promise<TerminalInputData> {
+    return this.call("browser.terminal_input", input);
+  }
+
+  public async typeTerminal(
+    reference: Omit<TerminalInputInput, "input">,
+    text: string,
+  ): Promise<TerminalInputData> {
+    return this.terminalInput({ ...reference, input: { type: "text", text, submit: false } });
+  }
+
+  public async executeTerminal(
+    reference: Omit<TerminalInputInput, "input">,
+    command: string,
+  ): Promise<TerminalInputData> {
+    return this.terminalInput({
+      ...reference,
+      input: { type: "text", text: command, submit: true },
+    });
   }
 
   public async batch(

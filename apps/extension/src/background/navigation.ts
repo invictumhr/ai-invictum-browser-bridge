@@ -21,7 +21,9 @@ import {
   type WaitForParameters,
 } from "@invictum/protocol";
 
+import { AgentWindow } from "./agent-window.js";
 import { ExtensionCommandError } from "./command-error.js";
+import { debuggerSessions } from "./debugger-session.js";
 import { isChromePageAccessDenied } from "./page-access.js";
 import { mapChromeTab } from "./tabs.js";
 import { TabActivationSettings } from "../tab-activation-settings.js";
@@ -29,8 +31,31 @@ import { TabActivationSettings } from "../tab-activation-settings.js";
 const delay = async (milliseconds: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
 
-const assignDocumentLocation = (url: string): void => {
-  window.location.assign(url);
+const navigateToAdjacentHistoryEntry = async (
+  tabId: number,
+  direction: "back" | "forward",
+  originalError: unknown,
+): Promise<void> => {
+  const lease = await debuggerSessions.acquire(tabId).catch(() => undefined);
+  if (lease === undefined) throw originalError;
+  try {
+    const rawHistory = await lease.sendCommand("Page.getNavigationHistory");
+    if (typeof rawHistory !== "object" || rawHistory === null) throw originalError;
+    const history = rawHistory as Record<string, unknown>;
+    const currentIndex = history["currentIndex"];
+    const entries = history["entries"];
+    if (!Number.isInteger(currentIndex) || !Array.isArray(entries)) throw originalError;
+    const targetIndex = (currentIndex as number) + (direction === "back" ? -1 : 1);
+    const targetEntry = entries[targetIndex];
+    if (typeof targetEntry !== "object" || targetEntry === null) throw originalError;
+    const entryId = (targetEntry as Record<string, unknown>)["id"];
+    if (!Number.isInteger(entryId)) throw originalError;
+    await lease.sendCommand("Page.navigateToHistoryEntry", { entryId });
+  } catch {
+    throw originalError;
+  } finally {
+    await lease.release();
+  }
 };
 
 type TextWaitCondition = {
@@ -172,12 +197,15 @@ const textMatches = (actual: string, condition: TextWaitCondition): boolean => {
 export class ChromeNavigationAdapter {
   public constructor(
     private readonly activationSettings: TabActivationSettings = new TabActivationSettings(),
+    private readonly agentWindow: AgentWindow = new AgentWindow(),
   ) {}
 
   public async openTab(parameters: OpenTabParameters): Promise<OpenTabData> {
     try {
       const active = await this.activationSettings.resolve(parameters.active);
-      const tab = await chrome.tabs.create({ url: parameters.url, active });
+      // Agent tabs live in the agent's own window so they never replace the tab
+      // the user is looking at.
+      const tab = await this.agentWindow.openTab(parameters.url, active);
       if (tab.id === undefined) {
         throw new ExtensionCommandError(
           IBP_ERROR_CODES.BROWSER_API_ERROR,
@@ -214,21 +242,10 @@ export class ChromeNavigationAdapter {
           parameters.tabId,
           parameters.timeoutMs,
           beforeTab.pendingUrl ?? beforeTab.url,
-          () =>
-            chrome.scripting.executeScript({
-              target: { tabId: parameters.tabId },
-              world: "ISOLATED",
-              func: assignDocumentLocation,
-              args: [parameters.url],
-            }),
+          () => chrome.tabs.update(parameters.tabId, { url: parameters.url }),
         );
       } else {
-        await chrome.scripting.executeScript({
-          target: { tabId: parameters.tabId },
-          world: "ISOLATED",
-          func: assignDocumentLocation,
-          args: [parameters.url],
-        });
+        await chrome.tabs.update(parameters.tabId, { url: parameters.url });
       }
       const after = mapChromeTab(await chrome.tabs.get(parameters.tabId));
       return NavigateDataSchema.parse({
@@ -256,9 +273,12 @@ export class ChromeNavigationAdapter {
       const beforeTab = await chrome.tabs.get(parameters.tabId);
       const before = mapChromeTab(beforeTab);
       const trigger = (): Promise<unknown> =>
-        direction === "back"
+        (direction === "back"
           ? chrome.tabs.goBack(parameters.tabId)
-          : chrome.tabs.goForward(parameters.tabId);
+          : chrome.tabs.goForward(parameters.tabId)
+        ).catch((error: unknown) =>
+          navigateToAdjacentHistoryEntry(parameters.tabId, direction, error),
+        );
       if (parameters.waitUntil === "complete") {
         await triggerAndWaitForNavigation(
           parameters.tabId,

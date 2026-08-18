@@ -6,6 +6,7 @@ import {
 } from "@invictum/protocol";
 
 import { ExtensionCommandError } from "./command-error.js";
+import { TOP_FRAME_ID } from "./frames.js";
 import { isChromePageAccessDenied, pageAccessDeniedMessage } from "./page-access.js";
 
 const CONTENT_CHANNEL = "invictum.browser.snapshot.v1";
@@ -102,12 +103,16 @@ export class ChromeFindElementsAdapter {
         target: { tabId: parameters.tabId },
         files: ["content.js"],
       });
-      const rawResponse: unknown = await chrome.tabs.sendMessage(parameters.tabId, {
-        channel: CONTENT_CHANNEL,
-        command: "find_elements",
-        requestId,
-        parameters,
-      });
+      const rawResponse: unknown = await chrome.tabs.sendMessage(
+        parameters.tabId,
+        {
+          channel: CONTENT_CHANNEL,
+          command: "find_elements",
+          requestId,
+          parameters,
+        },
+        { frameId: TOP_FRAME_ID },
+      );
       const response = parseResponse(rawResponse, requestId);
       if (!response.ok) {
         throw new ExtensionCommandError(

@@ -20,6 +20,9 @@ const requiredAdvancedActions = [
   "browser.network",
   "browser.emulate_device",
   "browser.perform_gesture",
+  "browser.get_terminals",
+  "browser.read_terminal",
+  "browser.terminal_input",
   "browser.get_page_text",
   "browser.find_natural_language",
   "browser.go_back",
@@ -55,6 +58,10 @@ const requiredAdvancedFeatures = [
   "configurableTabActivation",
   "screenshotModes",
   "screenshotAnnotations",
+  "terminalAutomation",
+  "trustedTerminalInput",
+  "terminalBufferReadback",
+  "terminalTransportReadback",
 ] as const;
 
 afterEach(() => {
@@ -70,7 +77,7 @@ describe("extension capability contract", () => {
     const capabilities = getExtensionCapabilities();
     const actions = capabilities.actions.map(({ action }) => action);
 
-    expect(actions).toHaveLength(46);
+    expect(actions).toHaveLength(54);
     expect(new Set(actions).size).toBe(actions.length);
     expect(actions).toEqual(expect.arrayContaining([...requiredAdvancedActions]));
     expect(

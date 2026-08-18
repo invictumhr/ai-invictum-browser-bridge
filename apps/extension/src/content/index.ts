@@ -1,4 +1,19 @@
+import {
+  performFigmaLocate,
+  type FigmaTargetLocation,
+  performFigmaHealthcheck,
+  performFigmaSelect,
+  performGetFigmaDocument,
+  performGetFigmaLayers,
+  performGetFigmaProperties,
+} from "./figma.js";
+import { classifyTextBlock, isRenderedBox, suppressesSubtree } from "./visibility";
 import type {
+  FigmaHealthcheckData,
+  FigmaSelectData,
+  GetFigmaDocumentData,
+  GetFigmaLayersData,
+  GetFigmaPropertiesData,
   AgentAlert,
   AgentDialog,
   AgentElement,
@@ -44,7 +59,8 @@ import type {
   PerformGestureParameters,
 } from "@invictum/protocol";
 
-import { limitFindMatches } from "./find-limit.js";
+import { limitFindMatches, relevantFindTruncationReasons } from "./find-limit.js";
+import { createContentId } from "./random-id.js";
 import { containsUnsafeCss } from "../safe-css.js";
 import {
   editWordPressMenu,
@@ -255,6 +271,19 @@ interface SubmitFormRequestMessage {
   parameters: SubmitFormParameters;
 }
 
+interface FigmaRequestMessage {
+  channel: typeof SNAPSHOT_CHANNEL;
+  command:
+    | "get_figma_document"
+    | "get_figma_layers"
+    | "get_figma_properties"
+    | "figma_select"
+    | "figma_locate"
+    | "figma_healthcheck";
+  requestId: string;
+  parameters: Record<string, unknown> & { tabId: number };
+}
+
 interface GetWordPressMenuRequestMessage {
   channel: typeof SNAPSHOT_CHANNEL;
   command: "get_wordpress_menu";
@@ -360,7 +389,13 @@ interface InteractionSuccessMessage {
     | MutateDomData
     | ObserveEventsData
     | ClickAtData
-    | PerformGestureData;
+    | PerformGestureData
+    | GetFigmaDocumentData
+    | GetFigmaLayersData
+    | GetFigmaPropertiesData
+    | FigmaSelectData
+    | FigmaHealthcheckData
+    | FigmaTargetLocation;
 }
 
 interface FileInputPreparationSuccessMessage {
@@ -415,6 +450,7 @@ interface SnapshotCollector {
   textLength: number;
   truncated: boolean;
   truncationReasons: Set<TruncationReason>;
+  hiddenSubtreesSkipped: number;
   nextFrameNumber: number;
 }
 
@@ -474,7 +510,7 @@ const createRuntimeState = (): SnapshotRuntimeState => {
   const observedDocuments = new WeakSet<Document>();
   const observers: MutationObserver[] = [];
   const state: SnapshotRuntimeState = {
-    documentId: crypto.randomUUID(),
+    documentId: createContentId(),
     domRevision: 0,
     nextElementNumber: 1,
     elementIds: new WeakMap<Element, ElementReference>(),
@@ -665,6 +701,24 @@ const isSubmitFormRequest = (value: unknown): value is SubmitFormRequestMessage 
     typeof authorization["instructionId"] === "string"
   );
 };
+
+const FIGMA_COMMANDS = new Set([
+  "get_figma_document",
+  "get_figma_layers",
+  "get_figma_properties",
+  "figma_select",
+  "figma_locate",
+  "figma_healthcheck",
+]);
+
+const isFigmaRequest = (value: unknown): value is FigmaRequestMessage =>
+  isRecord(value) &&
+  isRecord(value["parameters"]) &&
+  value["channel"] === SNAPSHOT_CHANNEL &&
+  typeof value["command"] === "string" &&
+  FIGMA_COMMANDS.has(value["command"]) &&
+  typeof value["requestId"] === "string" &&
+  typeof value["parameters"]["tabId"] === "number";
 
 const isGetWordPressMenuRequest = (value: unknown): value is GetWordPressMenuRequestMessage =>
   isRecord(value) &&
@@ -907,23 +961,21 @@ const getBoundingBox = (element: Element) => {
   };
 };
 
-const isVisible = (element: Element): boolean => {
-  if (isHtmlElement(element) && element.hidden) {
-    return false;
-  }
+const isVisible = (element: Element): boolean =>
+  isRenderedBox(
+    ownerWindow(element).getComputedStyle(element),
+    element.getBoundingClientRect(),
+    isHtmlElement(element) && element.hidden,
+  );
+
+const suppressesElementSubtree = (element: Element): boolean => {
   const style = ownerWindow(element).getComputedStyle(element);
-  if (
-    style.display === "none" ||
-    style.visibility === "hidden" ||
-    style.visibility === "collapse"
-  ) {
-    return false;
-  }
-  if (Number(style.opacity) === 0) {
-    return false;
-  }
-  const rect = element.getBoundingClientRect();
-  return rect.width > 0 && rect.height > 0;
+  return suppressesSubtree(
+    style,
+    element.getBoundingClientRect(),
+    isHtmlElement(element) && element.hidden,
+    style.getPropertyValue("content-visibility"),
+  );
 };
 
 const implicitRole = (element: Element): string => {
@@ -1177,20 +1229,13 @@ const pushTextBlock = (
   frameId: string,
   sensitive: boolean,
 ): void => {
-  const tag = element.tagName.toLowerCase();
-  let kind: TextBlock["kind"] | undefined;
-  let level: number | null = null;
-  if (/^h[1-6]$/.test(tag)) {
-    kind = "heading";
-    level = Number(tag.slice(1));
-  } else if (tag === "p") {
-    kind = "paragraph";
-  } else if (tag === "label") {
-    kind = "label";
-  } else if (tag === "nav") {
-    kind = "navigation";
-  }
-  if (kind === undefined) return;
+  const classified = classifyTextBlock(
+    element.tagName,
+    element.getAttribute("role"),
+    element.getAttribute("aria-level"),
+  );
+  if (classified === undefined) return;
+  const { kind, level } = classified;
   const rawText = sensitive ? REDACTED : (element.textContent ?? "");
   const text = consumeText(collector, rawText, 2_000);
   if (text.length === 0) return;
@@ -1338,9 +1383,16 @@ const walkElement = (
     markTruncated(collector, "max_elements");
     return;
   }
-  if (!collector.parameters.includeHidden && !isVisible(element)) return;
+  let rendered = true;
+  if (!collector.parameters.includeHidden) {
+    if (suppressesElementSubtree(element)) {
+      collector.hiddenSubtreesSkipped += 1;
+      return;
+    }
+    rendered = isVisible(element);
+  }
 
-  const item = pushElement(collector, element, frameId);
+  const item = rendered ? pushElement(collector, element, frameId) : undefined;
   if (item !== undefined && collector.parameters.detail !== "outline") {
     pushSemanticGroups(collector, element, item);
   }
@@ -1382,7 +1434,7 @@ const walkElement = (
 const buildSnapshot = (parameters: GetPageSnapshotParameters): PageSnapshot => {
   synchronizeDomRevision();
 
-  let snapshotRoot: Element = document.documentElement;
+  let snapshotRoot: Element = document.body ?? document.documentElement;
   if (parameters.scope !== undefined) {
     if (
       parameters.scope.documentId !== runtime.documentId ||
@@ -1425,6 +1477,7 @@ const buildSnapshot = (parameters: GetPageSnapshotParameters): PageSnapshot => {
     textLength: 0,
     truncated: false,
     truncationReasons: new Set<TruncationReason>(),
+    hiddenSubtreesSkipped: 0,
     nextFrameNumber: 1,
   };
 
@@ -1500,6 +1553,7 @@ const buildSnapshot = (parameters: GetPageSnapshotParameters): PageSnapshot => {
       textLength: collector.textLength,
       truncated: collector.truncated,
       truncationReasons: [...collector.truncationReasons],
+      hiddenSubtreesSkipped: collector.hiddenSubtreesSkipped,
       detail: parameters.detail,
     },
   };
@@ -1793,11 +1847,23 @@ const findElements = (parameters: FindElementsParameters): FindElementsData => {
   }
 
   matches.sort((left, right) => right.score - left.score);
+  const textSensitiveSearch =
+    parameters.text !== undefined ||
+    parameters.regex !== undefined ||
+    parameters.name !== undefined ||
+    parameters.label !== undefined ||
+    parameters.placeholder !== undefined ||
+    parameters.title !== undefined ||
+    parameters.alt !== undefined;
+  const relevantTruncationReasons = relevantFindTruncationReasons(
+    snapshot.metadata.truncationReasons,
+    textSensitiveSearch,
+  );
   const limited = limitFindMatches(
     matches,
     parameters.maxResults,
-    snapshot.metadata.truncated,
-    snapshot.metadata.truncationReasons,
+    relevantTruncationReasons.length > 0,
+    relevantTruncationReasons,
   );
   return {
     page: { url: snapshot.page.url, origin: snapshot.page.origin },
@@ -3106,7 +3172,7 @@ const prepareElementInspection = (
       true,
     );
   }
-  const token = crypto.randomUUID();
+  const token = createContentId();
   element.setAttribute(INSPECT_TARGET_ATTRIBUTE, token);
   runtime.pendingElementInspections.set(token, { element });
   const summary = inspectionSummary(element);
@@ -3246,7 +3312,7 @@ const performObserveEvents = (parameters: ObserveEventsParameters): ObserveEvent
       parameters.scope === undefined ? undefined : resolveRevisionBoundElement(parameters.scope);
     const startedAtMs = Date.now();
     const capture: CapturedEventState = {
-      captureId: crypto.randomUUID(),
+      captureId: createContentId(),
       startedAt: new Date(startedAtMs).toISOString(),
       startedAtMs,
       eventTypes: [...parameters.eventTypes],
@@ -3398,7 +3464,7 @@ const prepareFileInput = (
       true,
     );
   }
-  const token = crypto.randomUUID();
+  const token = createContentId();
   element.setAttribute(FILE_INPUT_TARGET_ATTRIBUTE, token);
   runtime.pendingFileInputs.set(token, {
     element,
@@ -3691,12 +3757,12 @@ const createControlOverlay = (): ControlOverlay => {
           (response as Readonly<Record<string, unknown>>)["ok"] !== true
         ) {
           stopButton.disabled = false;
-          label.textContent = "Zaustavljanje nije uspjelo";
+          label.textContent = "Stop failed";
         }
       })
       .catch(() => {
         stopButton.disabled = false;
-        label.textContent = "Zaustavljanje nije uspjelo";
+        label.textContent = "Stop failed";
       });
   });
   panel.append(dot, label, stopButton);
@@ -3734,7 +3800,7 @@ const renderControlOverlay = (state: ControlOverlayState, agentName?: string): v
     disconnected: {
       color: "#ef4444",
       shadow: "rgba(239,68,68,.22)",
-      label: "AI veza prekinuta",
+      label: "AI connection lost",
     },
     stopped: {
       color: "#94a3b8",
@@ -3781,6 +3847,7 @@ const listener: RuntimeMessageListener = (message: unknown, _sender, sendRespons
     !isSelectOptionRequest(message) &&
     !isSetCheckedRequest(message) &&
     !isSubmitFormRequest(message) &&
+    !isFigmaRequest(message) &&
     !isGetWordPressMenuRequest(message) &&
     !isEditWordPressMenuRequest(message) &&
     !isGetWordPressAdminRequest(message) &&
@@ -3851,6 +3918,7 @@ const listener: RuntimeMessageListener = (message: unknown, _sender, sendRespons
         message.command === "check" ||
         message.command === "uncheck" ||
         message.command === "submit_form" ||
+        FIGMA_COMMANDS.has(message.command) ||
         message.command === "get_wordpress_menu" ||
         message.command === "edit_wordpress_menu" ||
         message.command === "get_wordpress_admin" ||
@@ -3873,6 +3941,24 @@ const listener: RuntimeMessageListener = (message: unknown, _sender, sendRespons
           result = await performSetChecked(message.parameters, message.command === "check");
         } else if (message.command === "submit_form") {
           result = performSubmitForm(message.parameters);
+        } else if (message.command === "get_figma_document") {
+          result = performGetFigmaDocument();
+        } else if (message.command === "get_figma_layers") {
+          result = performGetFigmaLayers(
+            message.parameters as unknown as Parameters<typeof performGetFigmaLayers>[0],
+          );
+        } else if (message.command === "get_figma_properties") {
+          result = performGetFigmaProperties();
+        } else if (message.command === "figma_select") {
+          result = performFigmaSelect(
+            message.parameters as unknown as Parameters<typeof performFigmaSelect>[0],
+          );
+        } else if (message.command === "figma_locate") {
+          result = performFigmaLocate(
+            message.parameters as unknown as Parameters<typeof performFigmaLocate>[0],
+          );
+        } else if (message.command === "figma_healthcheck") {
+          result = performFigmaHealthcheck();
         } else if (message.command === "get_wordpress_menu") {
           result = performGetWordPressMenu(message.parameters);
         } else if (message.command === "edit_wordpress_menu") {

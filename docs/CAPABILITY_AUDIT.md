@@ -1,10 +1,10 @@
 # Browser capability audit
 
-Date: 2026-07-24
+Date: 2026-08-17
 
 ## Current coverage
 
-The Bridge now exposes 46 runtime browser actions and 50 MCP tools. Together
+The Bridge now exposes 54 runtime browser actions and 61 MCP tools. Together
 they cover:
 
 - tab discovery, background opening/navigation, back/forward history, explicit
@@ -26,6 +26,9 @@ they cover:
   diagnostics, and PDF export;
 - explicitly authorized same-origin page API calls with bounded/redacted
   responses and optional browser-side WordPress nonce handling;
+- typed xterm/WHM terminal discovery, bounded redacted buffer or scoped
+  WebSocket-stream readback, fail-closed draft verification, background trusted
+  input, special keys, and prompt/text/quiet waits;
 - MCP, CLI, and SDK batching that preserves every step's normal policy, audit,
   validation, reservation, and error semantics.
 
@@ -64,6 +67,25 @@ Adds double-click, context-click, modifier-aware key events, deterministic
 Tab/Shift+Tab focus traversal, and absolute document scrolling. These remain
 synthetic page events and do not claim OS-trusted input.
 
+### Browser-hosted terminal adapter
+
+Adds a fixed, revision-bound xterm adapter instead of treating an off-screen
+helper textarea as an ordinary form control. Terminal discovery is R0, output
+readback is R2, and every trusted text/key action is R3. The adapter does not
+activate the tab, does not evaluate caller JavaScript, audits only hashes and
+lengths for command text, redacts common secret shapes, waits for output change
+before accepting a prompt, and refuses automatic command retry after uncertain
+delivery. When a vendor hides its xterm buffer, a listener scoped to that one
+input action may identify exactly one WebSocket carrying the exact draft and
+return only its bounded, redacted response stream. Raw frames never enter audit
+or general network capture and are discarded in `finally`. `submit:true` fails
+with `TERMINAL_DELIVERY_UNVERIFIED` before Enter unless the exact draft is
+proved by buffer or unique transport. It returns explicit draft/output
+verification state and skips an impossible implicit wait when neither source
+is readable. Detection also returns a content-free document-coordinate crop so
+screenshot fallback does not expose the full administration viewport. A
+deterministic xterm fixture covers the full workflow.
+
 ## Evaluated and intentionally deferred
 
 ### Cookies, storage, cache contents, and autofill data
@@ -98,7 +120,9 @@ must not be bypassed.
 Not added to the extension protocol. Synthetic semantic input is safer,
 deterministic, revision-bound, and auditable. Existing machine-level
 automation remains a separately authorized fallback for browser chrome that
-the extension cannot control.
+the extension cannot control. The terminal adapter is a narrow exception: it
+uses Chrome trusted CDP text/key input only for a detected, revision-bound
+xterm helper and retains R3 authorization for every input.
 
 ### Unrestricted download management
 

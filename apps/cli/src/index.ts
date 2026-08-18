@@ -12,13 +12,23 @@ import {
   buildEnhancementArguments,
   buildWaitParameters,
   numberArgument,
+  unknownFlags,
 } from "./arguments.js";
 import { ControlClient, ControlError } from "./client.js";
 import { CliStateStore, type CachedElementReference, type CachedTabState } from "./state.js";
+import { decodeStdinText } from "./stdin-json.js";
 
 const rawArgs = process.argv.slice(2);
 const pretty = rawArgs.includes("--pretty");
 const args = rawArgs.filter((argument) => argument !== "--pretty");
+const unrecognized = unknownFlags(rawArgs);
+if (unrecognized.length > 0) {
+  process.stderr.write(
+    `Unknown option(s): ${unrecognized.join(", ")}. Run "browser help" for the supported flags.
+`,
+  );
+  process.exit(2);
+}
 const baseUrl = process.env["INVICTUM_CONTROL_URL"] ?? "http://127.0.0.1:47820";
 const sessionId = process.env["INVICTUM_SESSION_ID"] ?? "invictum-cli";
 const client = new ControlClient(baseUrl, {
@@ -115,7 +125,7 @@ const readStdinJson = async (): Promise<unknown> => {
     chunks.push(bytes);
   }
   if (chunks.length === 0) return {};
-  return jsonArgument(Buffer.concat(chunks).toString("utf8"));
+  return jsonArgument(decodeStdinText(Buffer.concat(chunks)));
 };
 
 const cachedReference = (element: Record<string, unknown>): CachedElementReference | undefined => {
@@ -195,10 +205,10 @@ const uniqueRelocatedReference = async (
     domRevision: tab.domRevision,
     maxResults: 2,
     matchMode: "exact",
-    role: previous.role,
-    name: previous.name,
-    tag: previous.tag,
-    frameId: previous.frameId,
+    ...(previous.role.length === 0 || previous.role === "generic" ? {} : { role: previous.role }),
+    ...(previous.name.length === 0 ? {} : { name: previous.name }),
+    ...(previous.tag.length === 0 ? {} : { tag: previous.tag }),
+    ...(previous.frameId.length === 0 ? {} : { frameId: previous.frameId }),
     ...(previous.css === undefined ? {} : { css: previous.css }),
   };
   const found = await client.call("browser.find_elements", criteria);
@@ -385,6 +395,81 @@ const explicitAuthorization = (): Record<string, string> => ({
   instructionId: instructionArgument(),
 });
 
+const optionArgument = (name: string): string | undefined => {
+  const index = args.indexOf(name);
+  if (index < 0) return undefined;
+  const value = args[index + 1];
+  if (value === undefined || value.startsWith("--")) {
+    throw new Error(`${name} requires a value`);
+  }
+  return value;
+};
+
+interface ResolvedTerminalReference {
+  tabId: number;
+  documentId: string;
+  domRevision: number;
+  terminalId: string;
+}
+
+const resolveTerminalReference = async (tabId: number): Promise<ResolvedTerminalReference> => {
+  const detected = await client.call("browser.get_terminals", { tabId });
+  if (!isRecord(detected) || !Array.isArray(detected["terminals"])) {
+    throw new Error("Terminal detection returned an invalid result");
+  }
+  const requestedId = optionArgument("--terminal");
+  const terminals = detected["terminals"].filter(isRecord);
+  const terminal =
+    requestedId === undefined
+      ? terminals.length === 1
+        ? terminals[0]
+        : undefined
+      : terminals.find((candidate) => candidate["terminalId"] === requestedId);
+  if (terminal === undefined) {
+    if (terminals.length === 0) throw new Error(`No supported terminal was found in tab ${tabId}`);
+    if (requestedId !== undefined) {
+      throw new Error(`Terminal '${requestedId}' was not found in tab ${tabId}`);
+    }
+    throw new Error(
+      `Tab ${tabId} has ${terminals.length} terminals; choose one with --terminal <terminalId>`,
+    );
+  }
+  if (
+    typeof terminal["terminalId"] !== "string" ||
+    typeof terminal["documentId"] !== "string" ||
+    typeof terminal["domRevision"] !== "number"
+  ) {
+    throw new Error("The selected terminal reference was invalid");
+  }
+  return {
+    tabId,
+    documentId: terminal["documentId"],
+    domRevision: terminal["domRevision"],
+    terminalId: terminal["terminalId"],
+  };
+};
+
+const terminalWaitArgument = (): Record<string, unknown> | undefined => {
+  const waitText = optionArgument("--wait-text");
+  const quiet = optionArgument("--wait-quiet");
+  const selected = [
+    waitText !== undefined,
+    args.includes("--wait-prompt"),
+    quiet !== undefined,
+  ].filter(Boolean).length;
+  if (selected > 1) {
+    throw new Error("Use only one of --wait-text, --wait-prompt, or --wait-quiet");
+  }
+  if (waitText !== undefined) {
+    return { type: "text", value: waitText, match: "contains", caseSensitive: false };
+  }
+  if (args.includes("--wait-prompt")) return { type: "prompt" };
+  if (quiet !== undefined) {
+    return { type: "quiet", stableMs: numberArgument(quiet, "quiet milliseconds") };
+  }
+  return undefined;
+};
+
 const readBatchPath = (value: unknown, path: string): unknown => {
   if (path.length === 0) return value;
   let current = value;
@@ -526,6 +611,11 @@ const usage = {
     "invictum-browser drag <tabId> <sourceElementId> <targetElementId>",
     "invictum-browser scroll-by <tabId> <deltaX> <deltaY>",
     "invictum-browser scroll-xy <tabId> <x> <y>",
+    "invictum-browser terminals <tabId>",
+    "invictum-browser terminal-read <tabId> [--terminal <id>] [--lines <n>] [--scrollback] [--wait-text <text>|--wait-prompt|--wait-quiet <ms>] --instruction <id>",
+    "invictum-browser terminal-type <tabId> <text> [--terminal <id>] --instruction <id>",
+    "invictum-browser terminal-exec <tabId> <command> [--terminal <id>] [--wait-text <text>|--wait-prompt|--wait-quiet <ms>] --instruction <id>",
+    "invictum-browser terminal-key <tabId> <key> [--terminal <id>] [--ctrl] [--alt] [--meta] [--shift] --instruction <id>",
     "invictum-browser wp-admin <tabId>",
     "invictum-browser wp-row <tabId> <rowId> <actionKey> --instruction <id>",
     "invictum-browser wp-bulk <tabId> <actionKey> <rowId>... --instruction <id>",
@@ -772,6 +862,104 @@ const main = async (): Promise<unknown> => {
       x: numberArgument(args[2], "x"),
       y: numberArgument(args[3], "y"),
     });
+  }
+  if (command === "terminals") {
+    return client.call("browser.get_terminals", {
+      tabId: numberArgument(args[1], "tabId"),
+    });
+  }
+  if (command === "terminal-read") {
+    const tabId = numberArgument(args[1], "tabId");
+    const reference = await resolveTerminalReference(tabId);
+    const lines = optionArgument("--lines");
+    const waitFor = terminalWaitArgument();
+    return client.call("browser.read_terminal", {
+      ...reference,
+      ...(lines === undefined ? {} : { maxLines: numberArgument(lines, "lines") }),
+      includeScrollback: args.includes("--scrollback"),
+      ...(waitFor === undefined ? {} : { waitFor }),
+      authorization: explicitAuthorization(),
+    });
+  }
+  if (command === "terminal-type" || command === "terminal-exec") {
+    const tabId = numberArgument(args[1], "tabId");
+    const text = args[2];
+    if (text === undefined || text.length === 0) {
+      throw new Error(`${command} requires non-empty text`);
+    }
+    const reference = await resolveTerminalReference(tabId);
+    const waitFor = terminalWaitArgument();
+    return client.call("browser.terminal_input", {
+      ...reference,
+      input: { type: "text", text, submit: command === "terminal-exec" },
+      ...(waitFor === undefined ? {} : { waitFor }),
+      authorization: explicitAuthorization(),
+    });
+  }
+  if (command === "terminal-key") {
+    const tabId = numberArgument(args[1], "tabId");
+    const key = args[2];
+    if (key === undefined || key.length === 0) throw new Error("terminal-key requires a key");
+    const reference = await resolveTerminalReference(tabId);
+    const waitFor = terminalWaitArgument();
+    return client.call("browser.terminal_input", {
+      ...reference,
+      input: {
+        type: "key",
+        key,
+        ctrl: args.includes("--ctrl"),
+        alt: args.includes("--alt"),
+        meta: args.includes("--meta"),
+        shift: args.includes("--shift"),
+      },
+      ...(waitFor === undefined ? {} : { waitFor }),
+      authorization: explicitAuthorization(),
+    });
+  }
+  if (command === "figma-doc") {
+    return client.call("browser.get_figma_document", {
+      tabId: numberArgument(args[1], "tabId"),
+    });
+  }
+  if (command === "figma-layers") {
+    const maxRows = args[2] === undefined ? undefined : numberArgument(args[2], "maxRows");
+    return client.call("browser.get_figma_layers", {
+      tabId: numberArgument(args[1], "tabId"),
+      ...(maxRows === undefined ? {} : { maxRows }),
+    });
+  }
+  if (command === "figma-props") {
+    return client.call("browser.get_figma_properties", {
+      tabId: numberArgument(args[1], "tabId"),
+    });
+  }
+  if (command === "figma-health") {
+    return client.call("browser.figma_healthcheck", {
+      tabId: numberArgument(args[1], "tabId"),
+    });
+  }
+  if (command === "figma-select") {
+    const tabId = numberArgument(args[1], "tabId");
+    const kind = args[2];
+    const value = args[3];
+    if (kind === undefined || value === undefined) {
+      throw new Error("figma-select requires page|layer|mode and a value");
+    }
+    const target =
+      kind === "page"
+        ? { type: "page" as const, name: value }
+        : kind === "layer"
+          ? { type: "layer" as const, layerId: value }
+          : kind === "mode"
+            ? {
+                type: "mode" as const,
+                mode: value === "dev" ? ("dev" as const) : ("design" as const),
+              }
+            : undefined;
+    if (target === undefined) {
+      throw new Error("figma-select target must be page, layer, or mode");
+    }
+    return client.call("browser.figma_select", { tabId, target });
   }
   if (command === "wp-admin") {
     return client.call("browser.get_wordpress_admin", {

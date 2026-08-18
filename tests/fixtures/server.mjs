@@ -6,6 +6,8 @@ const fixturePath = fileURLToPath(new URL("./basic-form.html", import.meta.url))
 const fixture = await readFile(fixturePath);
 const kitchenSinkPath = fileURLToPath(new URL("./kitchen-sink.html", import.meta.url));
 const kitchenSink = await readFile(kitchenSinkPath);
+const terminalPath = fileURLToPath(new URL("./xterm-terminal.html", import.meta.url));
+const terminal = await readFile(terminalPath);
 const frame = Buffer.from(
   `<!doctype html><html><head><title>Fixture frame</title></head><body>
     <h2>Frame content</h2>
@@ -78,6 +80,10 @@ const server = createServer((request, response) => {
   }
   if (request.url?.startsWith("/kitchen-sink")) {
     response.end(kitchenSink);
+    return;
+  }
+  if (request.url?.startsWith("/xterm-terminal")) {
+    response.end(terminal);
     return;
   }
   response.statusCode = 302;
