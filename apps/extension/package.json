@@ -1,0 +1,28 @@
+{
+  "name": "@invictum/extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./handler": {
+      "types": "./dist-lib/background/handler.d.ts",
+      "default": "./dist-lib/background/handler.js"
+    }
+  },
+  "scripts": {
+    "build": "vite build && vite build --config vite.content.config.ts && vite build --config vite.popup.config.ts && tsc -p tsconfig.lib.json",
+    "clean": "node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true});fs.rmSync('dist-lib',{recursive:true,force:true})\"",
+    "dev": "vite build --watch",
+    "lint": "eslint src vite.config.ts vite.content.config.ts vite.popup.config.ts --max-warnings 0",
+    "test:unit": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@invictum/policy-engine": "workspace:*",
+    "@invictum/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.326",
+    "vite": "^7.0.6"
+  }
+}

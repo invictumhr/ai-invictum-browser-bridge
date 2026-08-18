@@ -1,0 +1,12 @@
+---
+description: Use Invictum Browser Bridge whenever the user requests IBB, IBG, Invictum Browser Bridge, or Invictum Browser Gate
+alwaysApply: true
+---
+
+`IBB`, `IBG`, `Invictum Browser Bridge`, and `Invictum Browser Gate` are aliases
+for the same local browser-control system.
+
+When the user asks to use one of those names, read `AGENT_TRIGGER.md` from this
+repository root and use the `invictum_*` MCP tools. Do not silently substitute
+another browser automation surface. If MCP is unavailable, use the documented
+CLI fallback.

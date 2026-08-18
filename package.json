@@ -1,0 +1,38 @@
+{
+  "name": "invictum-browser-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A security-first local bridge between AI agents and the user's existing Chrome session.",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "benchmark:snapshots": "node scripts/benchmark-snapshots.mjs",
+    "browser": "node apps/cli/dist/index.js",
+    "clean": "turbo run clean",
+    "dev": "turbo run dev --parallel",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "turbo run lint && pnpm format:check",
+    "security:secrets": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-secrets.ps1",
+    "security:secrets:staged": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-secrets.ps1 -Staged",
+    "test": "pnpm test:unit && pnpm test:integration",
+    "test:integration": "turbo run test:integration",
+    "test:unit": "turbo run test:unit",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.31.0",
+    "@types/node": "^24.0.15",
+    "esbuild": "0.28.1",
+    "eslint": "^9.31.0",
+    "prettier": "^3.6.2",
+    "turbo": "^2.5.5",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.38.0",
+    "vitest": "^3.2.4"
+  }
+}

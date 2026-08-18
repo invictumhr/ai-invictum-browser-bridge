@@ -1,0 +1,28 @@
+{
+  "name": "@invictum/integration-tests",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint src --max-warnings 0",
+    "smoke:chrome:list-tabs": "node dist/chrome-list-tabs-smoke.js",
+    "smoke:chrome:page-snapshot": "node dist/chrome-page-snapshot-smoke.js",
+    "smoke:chrome:find-elements": "node dist/chrome-find-elements-smoke.js",
+    "smoke:chrome:phase2-form": "node dist/chrome-phase2-form-smoke.js",
+    "smoke:chrome:advanced-form": "node dist/chrome-advanced-form-smoke.js",
+    "smoke:chrome:kitchen-sink": "node dist/chrome-kitchen-sink-smoke.js",
+    "smoke:chrome:agent-control": "node dist/chrome-agent-control-smoke.js",
+    "smoke:chrome:auth-dialog": "node dist/chrome-auth-dialog-smoke.js",
+    "test:integration": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@invictum/agent-sdk": "workspace:*",
+    "@invictum/audit-log": "workspace:*",
+    "@invictum/desktop": "workspace:*",
+    "@invictum/extension": "workspace:*",
+    "@invictum/native-host": "workspace:*",
+    "@invictum/protocol": "workspace:*"
+  }
+}

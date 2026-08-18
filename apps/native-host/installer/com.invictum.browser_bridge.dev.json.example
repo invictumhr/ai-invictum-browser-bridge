@@ -1,0 +1,7 @@
+{
+  "name": "com.invictum.browser_bridge",
+  "description": "Invictum Browser Bridge Native Messaging Host (development)",
+  "path": "C:\\ABSOLUTE\\PATH\\TO\\invictum-native-host.exe",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://EXTENSION_ID/"]
+}

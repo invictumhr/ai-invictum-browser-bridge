@@ -1,0 +1,990 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invictum Kitchen Sink Fixture</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 980px;
+        margin: 32px auto;
+        padding: 0 20px 80px;
+      }
+      section,
+      form {
+        display: grid;
+        gap: 10px;
+        margin: 24px 0;
+        padding: 16px;
+        border: 1px solid #bbb;
+      }
+      label {
+        display: grid;
+        gap: 4px;
+      }
+      input,
+      textarea,
+      select,
+      button {
+        font: inherit;
+        padding: 7px;
+      }
+      [contenteditable="true"] {
+        min-height: 64px;
+        padding: 9px;
+        border: 1px solid #666;
+      }
+      [role="status"],
+      [role="alert"] {
+        padding: 8px;
+        background: #eef6ff;
+      }
+      table {
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 6px;
+        border: 1px solid #aaa;
+      }
+      #advanced-target {
+        padding: 12px;
+        border: 2px dashed #667;
+        background: rgb(245 247 250);
+      }
+      #fixture-listbox {
+        display: grid;
+        gap: 4px;
+        margin-top: 6px;
+        padding: 6px;
+        border: 1px solid #778;
+      }
+      #fixture-listbox [role="option"] {
+        cursor: pointer;
+        padding: 6px;
+      }
+      #fixture-listbox [role="option"]:hover {
+        background: #e8efff;
+      }
+      #menu-to-edit {
+        display: grid;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      #menu-to-edit .menu-item {
+        padding: 8px;
+        border: 1px solid #99a;
+        background: #f8f9fb;
+      }
+      #menu-to-edit .menu-item-depth-1 {
+        margin-left: 28px;
+      }
+      #menu-to-edit .menu-item-depth-2 {
+        margin-left: 56px;
+      }
+      #menu-to-edit .menu-item-settings {
+        display: none;
+      }
+    </style>
+  </head>
+  <body class="wp-admin">
+    <div id="wpadminbar">
+      <div id="wp-admin-bar-site-name"><a href="/">Invictum Fixture Site</a></div>
+    </div>
+    <main>
+      <h1>Browser bridge kitchen sink</h1>
+      <p>Deterministic controls for exhaustive Invictum interaction testing.</p>
+      <div id="status" role="status">No action yet.</div>
+
+      <form id="input-form">
+        <h2>Native inputs</h2>
+        <label>Text input <input id="text-input" name="display_name" value="Initial text" /></label>
+        <label>Search input <input id="search-input" type="search" value="Initial search" /></label>
+        <label
+          >Email input <input id="email-input" type="email" value="fixture@example.test"
+        /></label>
+        <label>Number input <input id="number-input" type="number" value="12" /></label>
+        <label>Date input <input id="date-input" type="date" value="2026-07-22" /></label>
+        <label>Readonly input <input id="readonly-input" value="Immutable" readonly /></label>
+        <label>Disabled input <input id="disabled-input" value="Disabled" disabled /></label>
+        <label
+          >Password input <input id="password-input" type="password" value="fixture-only-password"
+        /></label>
+        <label>File input <input id="file-input" type="file" accept=".txt,text/plain" /></label>
+        <label
+          >Multiple file input
+          <input id="multi-file-input" type="file" accept=".txt,text/plain" multiple
+        /></label>
+        <label>Color input <input id="color-input" type="color" value="#336699" /></label>
+        <label>Notes <textarea id="notes">Initial notes</textarea></label>
+        <label>
+          Single select
+          <select id="single-select">
+            <option value="alpha">Alpha</option>
+            <option value="beta">Beta</option>
+            <option value="gamma">Gamma</option>
+          </select>
+        </label>
+        <label>
+          Multiple select
+          <select id="multi-select" multiple>
+            <option value="one">One</option>
+            <option value="two">Two</option>
+            <option value="three">Three</option>
+          </select>
+        </label>
+        <label><input id="checkbox-input" type="checkbox" /> Enable fixture option</label>
+        <fieldset>
+          <legend>Delivery mode</legend>
+          <label
+            ><input id="radio-standard" name="delivery" type="radio" value="standard" /> Standard
+            delivery</label
+          >
+          <label
+            ><input id="radio-express" name="delivery" type="radio" value="express" /> Express
+            delivery</label
+          >
+        </fieldset>
+        <button id="ordinary-button" type="button">Run ordinary action</button>
+        <button id="submit-button" type="submit">Submit kitchen form</button>
+        <output id="input-events">No native input event.</output>
+        <output id="file-events">No file input event.</output>
+      </form>
+
+      <section aria-labelledby="editors-heading">
+        <h2 id="editors-heading">Editor laboratory</h2>
+        <div id="plain-editor" role="textbox" aria-label="Plain rich editor" contenteditable="true">
+          Plain initial content
+        </div>
+        <div
+          id="prosemirror-editor"
+          class="ProseMirror"
+          role="textbox"
+          aria-label="ProseMirror fixture editor"
+          contenteditable="true"
+        >
+          <p>ProseMirror initial paragraph</p>
+        </div>
+        <div class="ck-editor">
+          <div
+            id="ckeditor-editor"
+            class="ck-editor__editable"
+            role="textbox"
+            aria-label="CKEditor fixture editor"
+            contenteditable="true"
+          >
+            <p>CKEditor initial paragraph</p>
+          </div>
+        </div>
+        <form id="code-editor-form">
+          <label for="codemirror-editor">Model-backed code editor</label>
+          <textarea id="code-editor-source" name="code" hidden>
+&lt;?php
+return 'initial';</textarea>
+          <div id="codemirror-wrapper" class="CodeMirror">
+            <div
+              id="codemirror-editor"
+              class="CodeMirror-code"
+              role="textbox"
+              aria-label="CodeMirror fixture editor"
+              contenteditable="true"
+            >
+              &lt;?php return 'initial';
+            </div>
+          </div>
+          <button id="code-editor-submit" type="submit">Save code editor</button>
+          <output id="code-editor-result">Code editor has not been submitted.</output>
+        </form>
+        <output id="editor-events">No editor event.</output>
+      </section>
+
+      <section aria-labelledby="shadow-heading">
+        <h2 id="shadow-heading">Open shadow root</h2>
+        <div id="shadow-host"></div>
+        <output id="shadow-result">No shadow action.</output>
+      </section>
+
+      <section aria-labelledby="revision-heading">
+        <h2 id="revision-heading">Revision safety</h2>
+        <button id="implicit-nonform-button">Implicit non-form button</button>
+        <button id="stable-target" type="button">Stable revision target</button>
+        <button id="identity-target" type="button" aria-label="Original identity target">
+          Identity target
+        </button>
+        <div id="unrelated-mutation">Unrelated state 0</div>
+      </section>
+
+      <section id="advanced-laboratory" aria-labelledby="advanced-heading">
+        <h2 id="advanced-heading">Advanced DOM and event laboratory</h2>
+        <div id="advanced-target" data-state="initial">Advanced target initial text</div>
+        <div>
+          <button
+            id="custom-dropdown-trigger"
+            type="button"
+            role="combobox"
+            aria-haspopup="listbox"
+            aria-controls="fixture-listbox"
+            aria-expanded="false"
+          >
+            Choose generated option
+          </button>
+          <output id="custom-dropdown-output">No generated option selected.</output>
+        </div>
+        <div id="dynamic-widget-host"></div>
+        <output id="advanced-events">No advanced event observed.</output>
+      </section>
+
+      <form id="update-nav-menu">
+        <h2>Classic WordPress menu editor fixture</h2>
+        <input name="action" type="hidden" value="update" />
+        <input name="menu" type="hidden" value="151" />
+        <label>Menu name <input id="menu-name" name="menu-name" value="Primary fixture" /></label>
+        <ul id="menu-to-edit">
+          <li id="menu-item-101" class="menu-item menu-item-custom menu-item-depth-0">
+            <div class="menu-item-bar">
+              <span class="menu-item-title">Home</span>
+            </div>
+            <div class="menu-item-settings">
+              <input class="edit-menu-item-title" name="menu-item-title[101]" value="Home" />
+              <input class="edit-menu-item-url" name="menu-item-url[101]" value="/" />
+              <input class="edit-menu-item-attr-title" name="menu-item-attr-title[101]" value="" />
+              <input class="edit-menu-item-classes" name="menu-item-classes[101]" value="" />
+              <textarea
+                class="edit-menu-item-description"
+                name="menu-item-description[101]"
+              ></textarea>
+              <input
+                class="edit-menu-item-target"
+                name="menu-item-target[101]"
+                type="checkbox"
+                value="_blank"
+              />
+              <input
+                class="menu-item-data-db-id"
+                name="menu-item-db-id[101]"
+                type="hidden"
+                value="101"
+              />
+              <input
+                class="menu-item-data-object-id"
+                name="menu-item-object-id[101]"
+                type="hidden"
+                value="101"
+              />
+              <input
+                class="menu-item-data-object"
+                name="menu-item-object[101]"
+                type="hidden"
+                value="custom"
+              />
+              <input
+                class="menu-item-data-parent-id"
+                name="menu-item-parent-id[101]"
+                type="hidden"
+                value="0"
+              />
+              <input
+                class="menu-item-data-position"
+                name="menu-item-position[101]"
+                type="hidden"
+                value="0"
+              />
+              <input
+                class="menu-item-data-type"
+                name="menu-item-type[101]"
+                type="hidden"
+                value="custom"
+              />
+            </div>
+          </li>
+          <li id="menu-item-102" class="menu-item menu-item-post_type menu-item-depth-0">
+            <div class="menu-item-bar"><span class="menu-item-title">Boats</span></div>
+            <div class="menu-item-settings">
+              <input class="edit-menu-item-title" name="menu-item-title[102]" value="Boats" />
+              <input class="edit-menu-item-url" name="menu-item-url[102]" value="/boats/" />
+              <input class="edit-menu-item-attr-title" name="menu-item-attr-title[102]" value="" />
+              <input class="edit-menu-item-classes" name="menu-item-classes[102]" value="" />
+              <textarea
+                class="edit-menu-item-description"
+                name="menu-item-description[102]"
+              ></textarea>
+              <input
+                class="edit-menu-item-target"
+                name="menu-item-target[102]"
+                type="checkbox"
+                value="_blank"
+              />
+              <input
+                class="menu-item-data-db-id"
+                name="menu-item-db-id[102]"
+                type="hidden"
+                value="102"
+              />
+              <input
+                class="menu-item-data-object-id"
+                name="menu-item-object-id[102]"
+                type="hidden"
+                value="202"
+              />
+              <input
+                class="menu-item-data-object"
+                name="menu-item-object[102]"
+                type="hidden"
+                value="page"
+              />
+              <input
+                class="menu-item-data-parent-id"
+                name="menu-item-parent-id[102]"
+                type="hidden"
+                value="0"
+              />
+              <input
+                class="menu-item-data-position"
+                name="menu-item-position[102]"
+                type="hidden"
+                value="1"
+              />
+              <input
+                class="menu-item-data-type"
+                name="menu-item-type[102]"
+                type="hidden"
+                value="post_type"
+              />
+            </div>
+          </li>
+          <li id="menu-item-103" class="menu-item menu-item-taxonomy menu-item-depth-1">
+            <div class="menu-item-bar"><span class="menu-item-title">Rentals</span></div>
+            <div class="menu-item-settings">
+              <input class="edit-menu-item-title" name="menu-item-title[103]" value="Rentals" />
+              <input class="edit-menu-item-url" name="menu-item-url[103]" value="/rentals/" />
+              <input class="edit-menu-item-attr-title" name="menu-item-attr-title[103]" value="" />
+              <input class="edit-menu-item-classes" name="menu-item-classes[103]" value="" />
+              <textarea
+                class="edit-menu-item-description"
+                name="menu-item-description[103]"
+              ></textarea>
+              <input
+                class="edit-menu-item-target"
+                name="menu-item-target[103]"
+                type="checkbox"
+                value="_blank"
+              />
+              <input
+                class="menu-item-data-db-id"
+                name="menu-item-db-id[103]"
+                type="hidden"
+                value="103"
+              />
+              <input
+                class="menu-item-data-object-id"
+                name="menu-item-object-id[103]"
+                type="hidden"
+                value="303"
+              />
+              <input
+                class="menu-item-data-object"
+                name="menu-item-object[103]"
+                type="hidden"
+                value="category"
+              />
+              <input
+                class="menu-item-data-parent-id"
+                name="menu-item-parent-id[103]"
+                type="hidden"
+                value="102"
+              />
+              <input
+                class="menu-item-data-position"
+                name="menu-item-position[103]"
+                type="hidden"
+                value="2"
+              />
+              <input
+                class="menu-item-data-type"
+                name="menu-item-type[103]"
+                type="hidden"
+                value="taxonomy"
+              />
+            </div>
+          </li>
+          <li id="menu-item-104" class="menu-item menu-item-custom menu-item-depth-0">
+            <div class="menu-item-bar"><span class="menu-item-title">Info</span></div>
+            <div class="menu-item-settings">
+              <input class="edit-menu-item-title" name="menu-item-title[104]" value="Info" />
+              <input class="edit-menu-item-url" name="menu-item-url[104]" value="/info/" />
+              <input class="edit-menu-item-attr-title" name="menu-item-attr-title[104]" value="" />
+              <input class="edit-menu-item-classes" name="menu-item-classes[104]" value="" />
+              <textarea
+                class="edit-menu-item-description"
+                name="menu-item-description[104]"
+              ></textarea>
+              <input
+                class="edit-menu-item-target"
+                name="menu-item-target[104]"
+                type="checkbox"
+                value="_blank"
+              />
+              <input
+                class="menu-item-data-db-id"
+                name="menu-item-db-id[104]"
+                type="hidden"
+                value="104"
+              />
+              <input
+                class="menu-item-data-object-id"
+                name="menu-item-object-id[104]"
+                type="hidden"
+                value="0"
+              />
+              <input
+                class="menu-item-data-object"
+                name="menu-item-object[104]"
+                type="hidden"
+                value="custom"
+              />
+              <input
+                class="menu-item-data-parent-id"
+                name="menu-item-parent-id[104]"
+                type="hidden"
+                value="0"
+              />
+              <input
+                class="menu-item-data-position"
+                name="menu-item-position[104]"
+                type="hidden"
+                value="3"
+              />
+              <input
+                class="menu-item-data-type"
+                name="menu-item-type[104]"
+                type="hidden"
+                value="custom"
+              />
+            </div>
+          </li>
+          <li id="menu-item-105" class="menu-item menu-item-custom menu-item-depth-1">
+            <div class="menu-item-bar"><span class="menu-item-title">Old info</span></div>
+            <div class="menu-item-settings">
+              <input class="edit-menu-item-title" name="menu-item-title[105]" value="Old info" />
+              <input class="edit-menu-item-url" name="menu-item-url[105]" value="/old-info/" />
+              <input class="edit-menu-item-attr-title" name="menu-item-attr-title[105]" value="" />
+              <input class="edit-menu-item-classes" name="menu-item-classes[105]" value="" />
+              <textarea
+                class="edit-menu-item-description"
+                name="menu-item-description[105]"
+              ></textarea>
+              <input
+                class="edit-menu-item-target"
+                name="menu-item-target[105]"
+                type="checkbox"
+                value="_blank"
+              />
+              <input
+                class="menu-item-data-db-id"
+                name="menu-item-db-id[105]"
+                type="hidden"
+                value="105"
+              />
+              <input
+                class="menu-item-data-object-id"
+                name="menu-item-object-id[105]"
+                type="hidden"
+                value="0"
+              />
+              <input
+                class="menu-item-data-object"
+                name="menu-item-object[105]"
+                type="hidden"
+                value="custom"
+              />
+              <input
+                class="menu-item-data-parent-id"
+                name="menu-item-parent-id[105]"
+                type="hidden"
+                value="104"
+              />
+              <input
+                class="menu-item-data-position"
+                name="menu-item-position[105]"
+                type="hidden"
+                value="4"
+              />
+              <input
+                class="menu-item-data-type"
+                name="menu-item-type[105]"
+                type="hidden"
+                value="custom"
+              />
+            </div>
+          </li>
+        </ul>
+        <button id="save_menu_header" name="save_menu" type="submit">Save fixture menu</button>
+        <output id="wordpress-menu-result">WordPress menu has not been submitted.</output>
+      </form>
+
+      <div class="wrap" id="wordpress-admin-fixture">
+        <h1 class="wp-heading-inline">Posts</h1>
+        <div class="notice notice-success is-dismissible">
+          <p>Fixture post list is ready.</p>
+          <button class="notice-dismiss" type="button">Dismiss</button>
+        </div>
+        <form id="posts-filter">
+          <label>
+            Bulk action
+            <select id="bulk-action-selector-top" name="action">
+              <option value="-1">Bulk actions</option>
+              <option value="edit">Edit</option>
+              <option value="trash">Move to Trash</option>
+            </select>
+          </label>
+          <button id="doaction" name="doaction" type="submit">Apply</button>
+          <table id="posts-list" class="wp-list-table">
+            <thead>
+              <tr>
+                <th class="check-column"><span class="screen-reader-text">Select</span></th>
+                <th id="title" class="column-title column-primary">Title</th>
+                <th id="author" class="column-author">Author</th>
+                <th id="date" class="column-date">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="post-201">
+                <th class="check-column">
+                  <input type="checkbox" name="post[]" value="201" />
+                </th>
+                <td class="column-title column-primary">
+                  <strong><a class="row-title" href="#post-201">Fixture article</a></strong>
+                  <span class="post-state">Published</span>
+                  <div class="row-actions">
+                    <span class="edit"
+                      ><a href="/wp-admin/post.php?post=201&amp;action=edit">Edit</a></span
+                    >
+                    <span class="trash"
+                      ><a href="/wp-admin/post.php?post=201&amp;action=trash">Trash</a></span
+                    >
+                  </div>
+                </td>
+                <td class="column-author">Fixture Admin</td>
+                <td class="column-date">2026-07-23</td>
+              </tr>
+              <tr id="post-202">
+                <th class="check-column">
+                  <input type="checkbox" name="post[]" value="202" />
+                </th>
+                <td class="column-title column-primary">
+                  <strong><a class="row-title" href="#post-202">Fixture draft</a></strong>
+                  <span class="post-state">Draft</span>
+                  <div class="row-actions">
+                    <span class="edit"
+                      ><a href="/wp-admin/post.php?post=202&amp;action=edit">Edit</a></span
+                    >
+                    <span class="trash"
+                      ><a href="/wp-admin/post.php?post=202&amp;action=trash">Trash</a></span
+                    >
+                  </div>
+                </td>
+                <td class="column-author">Fixture Editor</td>
+                <td class="column-date">Last modified</td>
+              </tr>
+            </tbody>
+          </table>
+          <output id="wordpress-list-result">No WordPress list action yet.</output>
+        </form>
+      </div>
+
+      <section class="block-editor" aria-labelledby="wordpress-editor-heading">
+        <h2 id="wordpress-editor-heading">WordPress Gutenberg model fixture</h2>
+        <p>
+          This visible preview mirrors the fake <code>core/editor</code> store used by the
+          model-aware bridge adapter.
+        </p>
+        <pre id="wordpress-editor-state"></pre>
+        <output id="wordpress-editor-result">WordPress editor has not been saved.</output>
+      </section>
+
+      <section aria-labelledby="table-heading">
+        <h2 id="table-heading">Semantic table</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Plan</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Basic</td>
+              <td><button id="basic-plan" type="button">Choose basic</button></td>
+            </tr>
+            <tr>
+              <td>Pro</td>
+              <td><button id="pro-plan" type="button">Choose pro</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="beforeunload-heading">
+        <h2 id="beforeunload-heading">Native beforeunload recovery</h2>
+        <button id="beforeunload-arm" type="button">Mark fixture as having unsaved changes</button>
+        <button id="beforeunload-async-navigate" type="button">
+          Start delayed navigation with unsaved changes
+        </button>
+        <output id="beforeunload-status">No unsaved-changes guard is active.</output>
+      </section>
+    </main>
+
+    <script>
+      const status = document.querySelector("#status");
+      const editorEvents = document.querySelector("#editor-events");
+      const inputEvents = document.querySelector("#input-events");
+      const fileEvents = document.querySelector("#file-events");
+      for (const id of [
+        "text-input",
+        "search-input",
+        "email-input",
+        "number-input",
+        "date-input",
+        "notes",
+        "single-select",
+        "multi-select",
+        "checkbox-input",
+        "radio-standard",
+        "radio-express",
+      ]) {
+        for (const type of ["input", "change"]) {
+          document.querySelector(`#${id}`).addEventListener(type, () => {
+            inputEvents.textContent = `${id} ${type} event observed.`;
+          });
+        }
+      }
+      for (const id of ["file-input", "multi-file-input"]) {
+        for (const type of ["input", "change"]) {
+          document.querySelector(`#${id}`).addEventListener(type, (event) => {
+            fileEvents.textContent = `${id} ${type}: ${event.currentTarget.files.length} file(s).`;
+          });
+        }
+      }
+      document.querySelector("#ordinary-button").addEventListener("click", () => {
+        status.textContent = "Ordinary action completed.";
+      });
+      document.querySelector("#input-form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        status.textContent = "Kitchen form submitted by the authorized agent.";
+      });
+      document.querySelector("#beforeunload-arm").addEventListener("click", () => {
+        window.addEventListener("beforeunload", (event) => {
+          event.preventDefault();
+          event.returnValue = "";
+        });
+        document.querySelector("#beforeunload-status").textContent =
+          "Unsaved-changes guard armed for the next navigation.";
+      });
+      document.querySelector("#beforeunload-async-navigate").addEventListener("click", () => {
+        document.querySelector("#beforeunload-status").textContent =
+          "Delayed navigation scheduled.";
+        window.setTimeout(() => {
+          window.location.href = "/basic-form?from=async-beforeunload";
+        }, 6_000);
+      });
+      for (const id of ["plain-editor", "prosemirror-editor", "ckeditor-editor"]) {
+        document.querySelector(`#${id}`).addEventListener("input", () => {
+          editorEvents.textContent = `${id} input event observed.`;
+        });
+      }
+      const codeEditorExpected = "<?php\nreturn 'synchronized';";
+      const codeEditorSource = document.querySelector("#code-editor-source");
+      const codeEditorWrapper = document.querySelector("#codemirror-wrapper");
+      const codeEditorSurface = document.querySelector("#codemirror-editor");
+      let codeEditorValue = codeEditorSource.value;
+      const codeMirrorFixtureApi = {
+        getValue() {
+          return codeEditorValue;
+        },
+        setValue(value) {
+          codeEditorValue = value;
+          codeEditorSurface.textContent = value;
+        },
+        save() {
+          codeEditorSource.value = codeEditorValue;
+        },
+        getTextArea() {
+          return codeEditorSource;
+        },
+      };
+      Object.defineProperty(codeEditorWrapper, "CodeMirror", {
+        configurable: true,
+        value: codeMirrorFixtureApi,
+      });
+      document.querySelector("#code-editor-form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        codeMirrorFixtureApi.save();
+        document.querySelector("#code-editor-result").textContent =
+          codeEditorSource.value === codeEditorExpected
+            ? "Code editor submitted with synchronized model."
+            : "Code editor submitted stale model.";
+      });
+      document.querySelector("#update-nav-menu").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const items = [...document.querySelector("#menu-to-edit").children];
+        const actual = items.map((item) => {
+          const itemId = item.id.replace("menu-item-", "");
+          const depth = [...item.classList]
+            .find((className) => className.startsWith("menu-item-depth-"))
+            ?.replace("menu-item-depth-", "");
+          return {
+            itemId,
+            depth,
+            parent:
+              item.querySelector(".menu-item-data-parent-id")?.value ??
+              item.querySelector(`[name="menu-item-parent-id[${itemId}]"]`)?.value,
+            position:
+              item.querySelector(".menu-item-data-position")?.value ??
+              item.querySelector(`[name="menu-item-position[${itemId}]"]`)?.value,
+            label: item.querySelector(".edit-menu-item-title")?.value,
+            url: item.querySelector(".edit-menu-item-url")?.value,
+          };
+        });
+        const expected = [
+          {
+            itemId: "101",
+            depth: "0",
+            parent: "0",
+            position: "1",
+            label: "Start",
+            url: "/start/",
+          },
+          {
+            itemId: "-1",
+            depth: "0",
+            parent: "0",
+            position: "2",
+            label: "Contact",
+            url: "/contact/",
+          },
+          {
+            itemId: "104",
+            depth: "0",
+            parent: "0",
+            position: "3",
+            label: "Info",
+            url: "/info/",
+          },
+          {
+            itemId: "102",
+            depth: "1",
+            parent: "104",
+            position: "4",
+            label: "Boats",
+            url: "/boats/",
+          },
+          {
+            itemId: "103",
+            depth: "2",
+            parent: "102",
+            position: "5",
+            label: "Rentals",
+            url: "/rentals/",
+          },
+        ];
+        document.querySelector("#wordpress-menu-result").textContent =
+          JSON.stringify(actual) === JSON.stringify(expected)
+            ? "WordPress menu submitted with synchronized tree."
+            : `WordPress menu submitted stale tree: ${JSON.stringify(actual)}`;
+      });
+      document.querySelectorAll("#posts-list .row-actions a").forEach((anchor) => {
+        anchor.addEventListener("click", (event) => {
+          event.preventDefault();
+          const row = anchor.closest("tr");
+          const action = anchor.closest(".row-actions > span")?.className ?? "unknown";
+          document.querySelector("#wordpress-list-result").textContent =
+            `WordPress row action ${action} opened for ${row?.id}.`;
+        });
+      });
+      document.querySelector("#posts-filter").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const action = document.querySelector("#bulk-action-selector-top").value;
+        const selected = [
+          ...document.querySelectorAll('#posts-list tbody input[type="checkbox"]:checked'),
+        ].map((input) => input.closest("tr")?.id);
+        document.querySelector("#wordpress-list-result").textContent =
+          `WordPress bulk action ${action} applied to ${selected.join(",")}.`;
+      });
+
+      const wordpressEditorState = {
+        id: 301,
+        type: "post",
+        title: "Fixture Gutenberg post",
+        content: "<!-- wp:paragraph --><p>Initial fixture content.</p><!-- /wp:paragraph -->",
+        excerpt: "Initial fixture excerpt.",
+        slug: "fixture-gutenberg-post",
+        status: "draft",
+        categories: [4],
+        tags: [8],
+        featured_media: 22,
+        author: 1,
+        parent: 0,
+        menu_order: 0,
+        comment_status: "open",
+        ping_status: "closed",
+      };
+      let wordpressEditorDirty = false;
+      let wordpressEditorSaving = false;
+      let wordpressEditorSaveSucceeded = null;
+      const renderWordPressEditorState = () => {
+        document.querySelector("#wordpress-editor-state").textContent = JSON.stringify(
+          wordpressEditorState,
+          null,
+          2,
+        );
+      };
+      window.wp = {
+        data: {
+          select(store) {
+            if (store !== "core/editor") return {};
+            return {
+              getCurrentPostId: () => wordpressEditorState.id,
+              getCurrentPostType: () => wordpressEditorState.type,
+              getEditedPostAttribute: (name) => wordpressEditorState[name],
+              getEditedPostContent: () => wordpressEditorState.content,
+              getPermalink: () => "https://example.test/fixture-gutenberg-post/",
+              isEditedPostDirty: () => wordpressEditorDirty,
+              isSavingPost: () => wordpressEditorSaving,
+              didPostSaveRequestSucceed: () => wordpressEditorSaveSucceeded === true,
+              didPostSaveRequestFail: () => wordpressEditorSaveSucceeded === false,
+            };
+          },
+          dispatch(store) {
+            if (store !== "core/editor") return {};
+            return {
+              editPost(patch) {
+                Object.assign(wordpressEditorState, patch);
+                wordpressEditorDirty = true;
+                wordpressEditorSaveSucceeded = null;
+                renderWordPressEditorState();
+              },
+              async savePost() {
+                wordpressEditorSaving = true;
+                await Promise.resolve();
+                wordpressEditorSaving = false;
+                wordpressEditorDirty = false;
+                wordpressEditorSaveSucceeded = true;
+                document.querySelector("#wordpress-editor-result").textContent =
+                  `WordPress editor saved ${wordpressEditorState.status}: ${wordpressEditorState.title}`;
+                renderWordPressEditorState();
+                return wordpressEditorState;
+              },
+            };
+          },
+        },
+      };
+      renderWordPressEditorState();
+      document.querySelector("#stable-target").addEventListener("click", () => {
+        status.textContent = "Stable revision target clicked.";
+      });
+      document.querySelector("#implicit-nonform-button").addEventListener("click", () => {
+        status.textContent = "Implicit non-form button clicked.";
+      });
+      document.querySelector("#identity-target").addEventListener("click", () => {
+        document
+          .querySelector("#identity-target")
+          .setAttribute("aria-label", "Changed identity target");
+        status.textContent = "Identity target clicked.";
+      });
+      document.querySelector("#basic-plan").addEventListener("click", () => {
+        status.textContent = "Basic plan selected.";
+      });
+      document.querySelector("#pro-plan").addEventListener("click", () => {
+        status.textContent = "Pro plan selected.";
+      });
+
+      const advancedEvents = document.querySelector("#advanced-events");
+      const dropdownTrigger = document.querySelector("#custom-dropdown-trigger");
+
+      function openGeneratedDropdown() {
+        let listbox = document.querySelector("#fixture-listbox");
+        if (!listbox) {
+          listbox = document.createElement("div");
+          listbox.id = "fixture-listbox";
+          listbox.setAttribute("role", "listbox");
+          listbox.innerHTML = `
+            <button type="button" role="option" data-value="generated-alpha">Generated Alpha</button>
+            <button type="button" role="option" data-value="generated-beta">Generated Beta</button>
+          `;
+          dropdownTrigger.insertAdjacentElement("afterend", listbox);
+        }
+        dropdownTrigger.setAttribute("aria-expanded", "true");
+        listbox.hidden = false;
+        return listbox;
+      }
+
+      function selectGeneratedOption(option) {
+        document.querySelector("#custom-dropdown-output").textContent =
+          `Generated selection: ${option.dataset.value}`;
+        dropdownTrigger.textContent = option.textContent;
+        dropdownTrigger.setAttribute("aria-expanded", "false");
+        document.querySelector("#fixture-listbox").hidden = true;
+        dropdownTrigger.dispatchEvent(
+          new CustomEvent("fixture:selection", {
+            bubbles: true,
+            detail: { kind: "generated-dropdown", valueType: typeof option.dataset.value },
+          }),
+        );
+      }
+
+      function handleFixtureDropdownClick(event) {
+        if (event.target.closest("#custom-dropdown-trigger")) {
+          openGeneratedDropdown();
+          advancedEvents.textContent = "Delegated dropdown click observed.";
+          return;
+        }
+        const option = event.target.closest("#fixture-listbox [role='option']");
+        if (option) selectGeneratedOption(option);
+      }
+
+      function handleFixtureDropdownKeydown(event) {
+        if (
+          event.target.closest("#custom-dropdown-trigger") &&
+          ["Enter", " ", "ArrowDown"].includes(event.key)
+        ) {
+          event.preventDefault();
+          openGeneratedDropdown().querySelector("[role='option']").focus();
+        }
+      }
+
+      document.addEventListener("click", handleFixtureDropdownClick);
+      document.addEventListener("keydown", handleFixtureDropdownKeydown);
+      document.addEventListener("fixture:selection", (event) => {
+        advancedEvents.textContent = `Custom selection event: ${event.detail.kind}`;
+      });
+
+      class InvictumCounter extends HTMLElement {
+        connectedCallback() {
+          this.innerHTML = `<button type="button">Generated counter <span>0</span></button>`;
+          this.querySelector("button").addEventListener("click", () => {
+            const value = Number(this.querySelector("span").textContent) + 1;
+            this.querySelector("span").textContent = String(value);
+          });
+        }
+      }
+      customElements.define("invictum-counter", InvictumCounter);
+      document
+        .querySelector("#dynamic-widget-host")
+        .append(document.createElement("invictum-counter"));
+
+      const shadow = document.querySelector("#shadow-host").attachShadow({ mode: "open" });
+      shadow.innerHTML = `
+        <style>label { display: grid; gap: 4px; } input, button { font: inherit; padding: 7px; }</style>
+        <label>Shadow note <input id="shadow-input" aria-label="Shadow note" value="Shadow initial" /></label>
+        <div id="shadow-editor" role="textbox" aria-label="Shadow rich editor" contenteditable="true">Shadow editor initial</div>
+        <button id="shadow-button" type="button">Run shadow action</button>
+      `;
+      shadow.querySelector("#shadow-button").addEventListener("click", () => {
+        document.querySelector("#shadow-result").textContent = "Shadow action completed.";
+      });
+    </script>
+  </body>
+</html>

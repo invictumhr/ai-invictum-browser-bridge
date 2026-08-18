@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invictum Phase 2 Form Fixture</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 760px;
+        margin: 40px auto;
+      }
+      form {
+        display: grid;
+        gap: 12px;
+      }
+      label {
+        display: grid;
+        gap: 4px;
+      }
+      input,
+      textarea,
+      select,
+      button {
+        font: inherit;
+        padding: 8px;
+      }
+      [role="alert"] {
+        padding: 8px;
+        background: #fff3cd;
+      }
+      .hidden-secret {
+        display: none;
+      }
+      [contenteditable="true"] {
+        min-height: 72px;
+        padding: 8px;
+        border: 1px solid #777;
+      }
+    </style>
+  </head>
+  <body>
+    <nav aria-label="Fixture navigation"><a href="#form">Form</a></nav>
+    <main>
+      <h1>Account settings</h1>
+      <p>This deterministic local page validates semantic snapshots.</p>
+      <div id="fixture-status" role="alert">No changes have been submitted.</div>
+      <form id="account-form" action="/save?csrf=fixture-secret" method="post">
+        <label>
+          Email
+          <input id="email" name="email" type="email" value="person@example.test" required />
+        </label>
+        <label>
+          Password
+          <input
+            id="password"
+            name="password"
+            type="password"
+            value="must-never-leave-the-page"
+            autocomplete="current-password"
+          />
+        </label>
+        <label>
+          One-time code
+          <input id="otp" name="otp" value="123456" autocomplete="one-time-code" />
+        </label>
+        <label>
+          Biography
+          <textarea id="biography" name="biography">Initial biography</textarea>
+        </label>
+        <label>
+          Country
+          <select id="country" name="country">
+            <option value="de">Germany</option>
+            <option value="hr">Croatia</option>
+            <option value="si">Slovenia</option>
+          </select>
+        </label>
+        <label>
+          <input id="terms" name="terms" type="checkbox" />
+          Accept terms
+        </label>
+        <div
+          id="wysiwyg-editor"
+          role="textbox"
+          aria-label="Rich text biography"
+          contenteditable="true"
+        >
+          <p>Initial <strong>formatted</strong> content.</p>
+        </div>
+        <button id="save" type="button" data-testid="fixture-save">Preview settings</button>
+        <button id="submit-settings" type="submit">Submit settings</button>
+      </form>
+      <section aria-labelledby="native-dialogs-heading">
+        <h2 id="native-dialogs-heading">Native JavaScript dialogs</h2>
+        <button id="open-alert" type="button">Open alert</button>
+        <button id="open-confirm" type="button">Open confirm</button>
+        <button id="open-prompt" type="button">Open prompt</button>
+        <output id="native-dialog-result">No native dialog handled.</output>
+      </section>
+      <p class="hidden-secret">hidden-content-must-not-appear</p>
+      <dialog aria-label="Confirmation dialog"><p>Confirm changes</p></dialog>
+      <iframe title="Same-origin fixture frame" src="/frame"></iframe>
+    </main>
+    <script>
+      document.querySelector("#save").addEventListener("click", () => {
+        const email = document.querySelector("#email");
+        document.querySelector("#fixture-status").textContent =
+          email.value === "agent.fixture@example.test"
+            ? "Settings previewed with the updated email."
+            : "Email value was not updated.";
+      });
+      document.querySelector("#account-form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        document.querySelector("#fixture-status").textContent =
+          "Form submitted by the authorized agent.";
+      });
+      document.querySelector("#open-alert").addEventListener("click", () => {
+        alert("Invictum fixture alert");
+        document.querySelector("#native-dialog-result").textContent = "Alert closed.";
+      });
+      document.querySelector("#open-confirm").addEventListener("click", () => {
+        const accepted = confirm("Invictum fixture confirm");
+        document.querySelector("#native-dialog-result").textContent = accepted
+          ? "Confirm accepted."
+          : "Confirm dismissed.";
+      });
+      document.querySelector("#open-prompt").addEventListener("click", () => {
+        const answer = prompt("Invictum fixture prompt", "default fixture value");
+        document.querySelector("#native-dialog-result").textContent =
+          answer === null ? "Prompt dismissed." : `Prompt accepted (${answer.length} chars).`;
+      });
+    </script>
+  </body>
+</html>

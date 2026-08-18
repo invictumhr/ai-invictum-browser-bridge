@@ -1,0 +1,59 @@
+# Dependencies, generated code, and tool caches
+node_modules/
+.pnpm-store/
+.turbo/
+coverage/
+dist/
+dist-lib/
+*.tsbuildinfo
+
+# Local Bridge runtime and machine-specific agent state
+.development/
+.agents/
+.codex/
+.cursor/mcp.json
+.cursor/IBB_USER_RULE.txt
+
+# Environment files and private key material
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.kdbx
+secrets/
+credentials/
+*.local.json
+
+# Runtime output that can contain browsing or machine data
+*.log
+*.pid
+*.har
+*.jsonl
+*.ndjson
+*.sqlite
+*.sqlite3
+*.db
+logs/
+audit-logs/
+tmp/
+temp/
+downloads/
+recordings/
+artifacts/
+playwright-report/
+test-results/
+
+# User-generated screenshots are deliberately not source-controlled
+screenshots/
+24sata-home.jpg
+
+# OS and editor metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/

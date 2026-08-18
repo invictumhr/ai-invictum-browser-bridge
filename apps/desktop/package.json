@@ -1,0 +1,35 @@
+{
+  "name": "@invictum/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "invictum-desktop-mock": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    },
+    "./control-server": {
+      "types": "./dist/control-server.d.ts",
+      "default": "./dist/control-server.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "dev": "node --enable-source-maps --watch dist/index.js",
+    "lint": "eslint src --max-warnings 0",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@invictum/audit-log": "workspace:*",
+    "@invictum/policy-engine": "workspace:*",
+    "@invictum/protocol": "workspace:*",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1"
+  }
+}

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Invictum Browser Controller</title>
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="logo" aria-hidden="true">I</span>
+        <div>
+          <h1>Invictum Browser Controller</h1>
+          <p id="connection-status" class="connection">Checking Bridge connection…</p>
+        </div>
+      </header>
+
+      <section aria-labelledby="tab-mode-title">
+        <h2 id="tab-mode-title">Default tab behavior</h2>
+        <p class="section-description">
+          An agent can request different behavior for an individual tab.
+        </p>
+
+        <label class="mode-option">
+          <input type="radio" name="activation-mode" value="background" />
+          <span>
+            <strong>Work in the background</strong>
+            <small>Do not interrupt my current work or change the active tab.</small>
+          </span>
+          <span class="recommended">Recommended</span>
+        </label>
+
+        <label class="mode-option">
+          <input type="radio" name="activation-mode" value="foreground" />
+          <span>
+            <strong>Activate the agent tab</strong>
+            <small>Show the tab when an agent opens or navigates it.</small>
+          </span>
+        </label>
+
+        <p id="save-status" class="save-status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section aria-labelledby="current-tab-title">
+        <h2 id="current-tab-title">Current tab</h2>
+        <div class="tab-status-row">
+          <span id="tab-status-dot" class="status-dot" aria-hidden="true"></span>
+          <span id="tab-status">Loading status…</span>
+        </div>
+        <p id="site-access-warning" class="warning" hidden>
+          Site access is not enabled for all HTTP(S) pages.
+        </p>
+        <button id="reauthorize-tab" type="button" hidden>
+          Reauthorize AI control of this tab
+        </button>
+      </section>
+
+      <section aria-labelledby="agent-tools-title">
+        <h2 id="agent-tools-title">Current tab diagnostics</h2>
+        <p class="section-description">
+          Agents can enable the same tools without activating the tab. They are reset automatically
+          when the reservation is released.
+        </p>
+        <div class="tool-row">
+          <div>
+            <strong>Programmatic console</strong>
+            <small id="console-status">Off</small>
+          </div>
+          <button id="toggle-console" class="compact-button" type="button">Turn on</button>
+        </div>
+        <div class="tool-row">
+          <div>
+            <strong>Mobile preview</strong>
+            <small id="mobile-status">Off</small>
+          </div>
+          <button id="toggle-mobile" class="compact-button" type="button">Turn on</button>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./index.ts"></script>
+  </body>
+</html>

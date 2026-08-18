@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "invictum-browser": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": ["<ABSOLUTE_REPOSITORY_PATH>\\apps\\mcp\\dist\\index.js"]
+    }
+  }
+}

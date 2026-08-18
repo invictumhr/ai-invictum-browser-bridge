@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invictum xterm fixture</title>
+    <style>
+      body {
+        margin: 0;
+        background: #111827;
+        color: #e5e7eb;
+        font-family: system-ui, sans-serif;
+      }
+      main {
+        width: min(960px, calc(100% - 48px));
+        margin: 32px auto;
+      }
+      .xterm {
+        position: relative;
+        min-height: 420px;
+        overflow: hidden;
+        border: 1px solid #374151;
+        border-radius: 10px;
+        background: #030712;
+        box-shadow: 0 16px 40px rgb(0 0 0 / 35%);
+      }
+      .xterm-screen,
+      .xterm-screen canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .xterm-helper-textarea {
+        position: absolute;
+        left: -9999px;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+      }
+      .xterm-accessibility-tree {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+      }
+      code {
+        color: #93c5fd;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Canvas terminal fixture</h1>
+      <p>
+        This deterministic page emulates the xterm shape used by browser-hosted terminals. Try
+        <code>printf terminal-ok</code>, <code>pwd</code>, or <code>whoami</code>.
+      </p>
+      <div class="xterm" aria-label="Fixture terminal">
+        <div class="xterm-screen"><canvas width="900" height="420"></canvas></div>
+        <textarea
+          class="xterm-helper-textarea"
+          aria-label="Terminal input"
+          autocapitalize="off"
+          autocomplete="off"
+          spellcheck="false"
+        ></textarea>
+        <div class="xterm-accessibility-tree" role="log" aria-live="polite"></div>
+      </div>
+    </main>
+    <script>
+      (() => {
+        const root = document.querySelector(".xterm");
+        const textarea = root.querySelector(".xterm-helper-textarea");
+        const accessible = root.querySelector(".xterm-accessibility-tree");
+        const lines = ["Invictum terminal fixture", "fixture@test:~$"];
+        let pending = "";
+
+        const lineStore = {
+          get length() {
+            return lines.length;
+          },
+          get(index) {
+            const text = lines[index];
+            return text === undefined ? undefined : { translateToString: () => text };
+          },
+        };
+
+        class Terminal {
+          constructor() {
+            this.element = root;
+            this.textarea = textarea;
+            this.cols = 100;
+            this.rows = 30;
+            this.buffer = {
+              type: "normal",
+              lines: lineStore,
+              get length() {
+                return lines.length;
+              },
+              get viewportY() {
+                return Math.max(0, lines.length - 30);
+              },
+              cursorX: 2,
+              cursorY: 1,
+            };
+          }
+        }
+
+        window.Terminal = Terminal;
+        window.fixtureTerminal = new Terminal();
+
+        const render = () => {
+          accessible.textContent = lines.join("\n");
+          window.fixtureTerminal.buffer.cursorY = Math.max(0, lines.length - 1);
+        };
+        const setInputLine = () => {
+          const prompt = `fixture@test:~$ ${pending}`.trimEnd();
+          lines[lines.length - 1] = prompt;
+          render();
+        };
+        const run = (command) => {
+          if (command === "printf terminal-ok") lines.push("terminal-ok");
+          else if (command === "pwd") lines.push("/srv/invictum-fixture");
+          else if (command === "whoami") lines.push("fixture-user");
+          else if (command === "show-secret") {
+            lines.push("password=fixture-password token=fixture-token-value");
+          } else if (command === "clear") lines.splice(0, lines.length);
+          else if (command.length > 0) lines.push(`fixture: command not allowed: ${command}`);
+          lines.push("fixture@test:~$");
+          render();
+        };
+
+        textarea.addEventListener("input", () => {
+          pending += textarea.value;
+          textarea.value = "";
+          setInputLine();
+        });
+        textarea.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            const command = pending;
+            pending = "";
+            run(command);
+          } else if (event.key === "Backspace" && pending.length > 0) {
+            event.preventDefault();
+            pending = pending.slice(0, -1);
+            setInputLine();
+          }
+        });
+        render();
+      })();
+    </script>
+  </body>
+</html>
