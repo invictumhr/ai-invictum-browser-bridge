@@ -39,6 +39,8 @@ interface TargetLocation {
   found: boolean;
   x: number;
   y: number;
+  stale: boolean;
+  actualName: string;
 }
 
 const TargetLocationSchema = {
@@ -47,7 +49,9 @@ const TargetLocationSchema = {
       !isRecord(value) ||
       typeof value["found"] !== "boolean" ||
       typeof value["x"] !== "number" ||
-      typeof value["y"] !== "number"
+      typeof value["y"] !== "number" ||
+      typeof value["stale"] !== "boolean" ||
+      typeof value["actualName"] !== "string"
     ) {
       throw new ExtensionCommandError(
         IBP_ERROR_CODES.INVALID_MESSAGE,
@@ -55,7 +59,13 @@ const TargetLocationSchema = {
         false,
       );
     }
-    return { found: value["found"], x: value["x"], y: value["y"] };
+    return {
+      found: value["found"],
+      x: value["x"],
+      y: value["y"],
+      stale: value["stale"],
+      actualName: value["actualName"],
+    };
   },
 };
 
@@ -198,6 +208,13 @@ export class ChromeFigmaAdapter {
       TargetLocationSchema,
       "locate the Figma layer row",
     );
+    if (located.stale) {
+      throw new ExtensionCommandError(
+        IBP_ERROR_CODES.STALE_ELEMENT_REFERENCE,
+        `The layer row now holds "${located.actualName}" instead of the expected layer; the panel scrolled or a node expanded. Read browser.get_figma_layers again and select from the fresh result`,
+        true,
+      );
+    }
     if (!located.found) {
       throw new ExtensionCommandError(
         IBP_ERROR_CODES.ELEMENT_NOT_INTERACTABLE,

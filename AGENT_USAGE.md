@@ -226,6 +226,7 @@ pnpm browser figma-doc 42
 pnpm browser figma-layers 42 300
 pnpm browser figma-props 42
 pnpm browser figma-select 42 page "Mobile"
+pnpm browser figma-select 42 layer 17 "Frame 67821"
 ```
 
 `upload`, `select`, `beforeunload`, and every `wp-` write carry the same

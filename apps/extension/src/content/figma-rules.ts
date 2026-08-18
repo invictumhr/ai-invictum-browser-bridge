@@ -136,3 +136,15 @@ export const figmaSelectionTypeFrom = (headings: readonly string[]): string | un
   headings.find(
     (heading) => heading.length > 0 && !FIGMA_STRUCTURAL_HEADINGS.has(heading.toLowerCase()),
   );
+
+/**
+ * Whether a layer row still holds the layer the caller was given.
+ *
+ * `layerId` is Figma's rendered-row index, so it points at a different node as
+ * soon as the virtualised panel scrolls or a node expands. Comparing the name
+ * that `get_figma_layers` reported against the name the row carries now turns
+ * that silent mis-selection into a stale-reference error. An empty expected
+ * name means the caller supplied no identity to check, so nothing is refused.
+ */
+export const figmaLayerRowMoved = (expectedName: string, actualName: string): boolean =>
+  expectedName.length > 0 && actualName !== expectedName;

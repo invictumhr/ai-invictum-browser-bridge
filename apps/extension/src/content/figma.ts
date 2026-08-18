@@ -18,6 +18,7 @@ import {
   figmaFileNameFrom,
   figmaLayerDepthFrom,
   figmaLayerIdFrom,
+  figmaLayerRowMoved,
   figmaModeFrom,
   figmaSelectionTypeFrom,
   isCurrentMarker,
@@ -441,6 +442,10 @@ export interface FigmaTargetLocation {
   found: boolean;
   x: number;
   y: number;
+  /** The row moved: this id now belongs to a different layer. */
+  stale: boolean;
+  /** What the row is actually called now, for the stale-reference message. */
+  actualName: string;
 }
 
 /**
@@ -451,15 +456,31 @@ export interface FigmaTargetLocation {
 export const performFigmaLocate = (parameters: FigmaSelectParameters): FigmaTargetLocation => {
   requireFigma();
   const { target } = parameters;
-  if (target.type !== "layer") return { found: false, x: 0, y: 0 };
+  if (target.type !== "layer") return { found: false, x: 0, y: 0, stale: false, actualName: "" };
   const row = layerRows().find(
     (candidate, index) => layerIdOf(candidate, index) === target.layerId,
   );
-  if (row === undefined) return { found: false, x: 0, y: 0 };
+  if (row === undefined) return { found: false, x: 0, y: 0, stale: false, actualName: "" };
+  // Figma's row index is positional, so the same id points at a different node
+  // once the virtualised panel scrolls. Refuse the target when the row no
+  // longer carries the name the caller was given, rather than selecting
+  // whatever happens to sit there now.
+  const actualName = firstTextRun(row);
+  if (figmaLayerRowMoved(target.name, actualName)) {
+    return { found: false, x: 0, y: 0, stale: true, actualName };
+  }
   row.scrollIntoView({ block: "center", inline: "nearest" });
   const rect = row.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0) return { found: false, x: 0, y: 0 };
-  return { found: true, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  if (rect.width <= 0 || rect.height <= 0) {
+    return { found: false, x: 0, y: 0, stale: false, actualName };
+  }
+  return {
+    found: true,
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+    stale: false,
+    actualName,
+  };
 };
 
 export const readFigmaState = (): FigmaSelectData => {

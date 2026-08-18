@@ -949,7 +949,7 @@ const main = async (): Promise<unknown> => {
       kind === "page"
         ? { type: "page" as const, name: value }
         : kind === "layer"
-          ? { type: "layer" as const, layerId: value }
+          ? { type: "layer" as const, layerId: value, name: args[4] ?? "" }
           : kind === "mode"
             ? {
                 type: "mode" as const,

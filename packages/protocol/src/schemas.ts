@@ -3147,7 +3147,17 @@ export const FigmaSelectParametersSchema = z
     tabId: z.number().int().nonnegative(),
     target: z.discriminatedUnion("type", [
       z.object({ type: z.literal("page"), name: z.string().min(1).max(512) }).strict(),
-      z.object({ type: z.literal("layer"), layerId: z.string().min(1).max(128) }).strict(),
+      // A layerId is Figma's rendered-row index, which shifts as soon as the
+      // virtualised panel scrolls or a node expands. Carrying the name that
+      // get_figma_layers reported for that row lets the adapter refuse a stale
+      // target instead of silently selecting whatever now sits at that index.
+      z
+        .object({
+          type: z.literal("layer"),
+          layerId: z.string().min(1).max(128),
+          name: z.string().max(512),
+        })
+        .strict(),
       z.object({ type: z.literal("mode"), mode: z.enum(["design", "dev"]) }).strict(),
     ]),
   })

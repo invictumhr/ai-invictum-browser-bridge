@@ -7,6 +7,7 @@ import {
   figmaFileNameFrom,
   figmaLayerDepthFrom,
   figmaLayerIdFrom,
+  figmaLayerRowMoved,
   figmaModeFrom,
   figmaSelectionTypeFrom,
   isCredentialLabel,
@@ -178,5 +179,26 @@ describe("text normalisation", () => {
 
   it("bounds very long text", () => {
     expect(cleanFigmaText("x".repeat(1_000))).toHaveLength(512);
+  });
+});
+
+describe("layer target staleness", () => {
+  it("accepts a row that still holds the expected layer", () => {
+    expect(figmaLayerRowMoved("Frame 67821", "Frame 67821")).toBe(false);
+  });
+
+  it("refuses a row that now holds a different layer", () => {
+    // layerId is a rendered-row index, so after a scroll the same id points at
+    // another node. Without this check figma_select silently selected it and
+    // still reported selected: true.
+    expect(figmaLayerRowMoved("Frame 67821", "lucide/log-in")).toBe(true);
+  });
+
+  it("refuses a row that lost its name entirely", () => {
+    expect(figmaLayerRowMoved("Frame 67821", "")).toBe(true);
+  });
+
+  it("checks nothing when the caller supplied no expected name", () => {
+    expect(figmaLayerRowMoved("", "anything")).toBe(false);
   });
 });

@@ -1259,7 +1259,7 @@ const tools: readonly ToolDefinition[] = [
         target: {
           type: "object",
           description:
-            "One of { type: 'page', name }, { type: 'layer', layerId } from invictum_get_figma_layers, or { type: 'mode', mode: 'design' | 'dev' }.",
+            "One of { type: 'page', name }, { type: 'layer', layerId, name } taken together from one invictum_get_figma_layers result, or { type: 'mode', mode: 'design' | 'dev' }. A layerId is a rendered-row index, so pass the name from the same result: if the panel scrolled and the row now holds another layer the call fails with STALE_ELEMENT_REFERENCE instead of selecting the wrong one.",
         },
       },
       ["tabId", "target"],

@@ -25,7 +25,7 @@ pnpm browser figma-doc 42
 pnpm browser figma-layers 42 300
 pnpm browser figma-props 42
 pnpm browser figma-select 42 page "Mobile"
-pnpm browser figma-select 42 layer 17
+pnpm browser figma-select 42 layer 17 "Frame 67821"
 pnpm browser figma-select 42 mode dev
 pnpm browser figma-health 42
 ```
@@ -66,8 +66,13 @@ results rather than failing. Wait for the healthcheck instead of retrying.
 - `layers` — **only the rows Figma has rendered**. The panel is virtualised, so
   `renderedOnly` is always `true` and `truncated` reports that more rows exist.
   Scroll the panel or select a layer to bring more rows into the DOM.
-- `layers[].layerId` — Figma's own rendered-row index. It is stable while the
-  panel does not scroll, not a persistent node id. Re-read before selecting.
+- `layers[].layerId` — Figma's own rendered-row index, not a persistent node
+  id: it points at a different layer as soon as the panel scrolls or a node
+  expands. Pass it to `figma_select` **together with the `name` from the same
+  result**. The adapter checks that the row still carries that name and fails
+  with `STALE_ELEMENT_REFERENCE` if it does not, so a scrolled panel cannot
+  cause the wrong layer to be selected. Two layers sharing a name at different
+  positions are the one case the check cannot separate.
 - `layers[].depth` — from Figma's `aria-level`, which is **zero-based**: a
   top-level layer is depth 0.
 - `properties.source` — `dev_mode_inspect` carries Figma's own CSS in `css`.
