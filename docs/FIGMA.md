@@ -108,10 +108,17 @@ unexpectedly empty results.
 - Every `figma_select` reads its result back after a short settle rather than in
   the same turn as the click, because Figma repaints asynchronously.
 - `figma_get_properties` reads inspector controls by role, naming each from
-  `aria-label`, `aria-labelledby`, `title`, or a placeholder. A control that
-  names itself none of those ways is skipped rather than reported with an empty
-  name. The `inspector` anchor count in `figma_healthcheck` tells you how many
-  controls were visible, which is the number to compare a result against.
+  `aria-label`, `aria-labelledby`, `title`, or a placeholder. Which sections
+  appear depends on the selected node: a text node yields Position and
+  Typography, a vector yields Position, Fill, and Selection colors.
+
+  A control that names itself none of those ways is skipped rather than
+  reported under a meaningless name. Figma's auto-layout sizing controls are the
+  known case: they render as `combobox` elements whose only name is their own
+  text, such as `HugHugHug (110)110`, so width and height are absent. The
+  `inspector` anchor count in `figma_healthcheck` reports how many controls
+  passed the naming check, which is the number to compare a result against.
+
 - Switching to Dev Mode works, but the panel itself needs a Dev or Full seat.
   Without one Figma still swaps the inspector for Inspect/Plugins and then
   covers it with an upgrade prompt, so `mode` reads `dev` while no CSS is
