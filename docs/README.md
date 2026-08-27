@@ -61,6 +61,8 @@ the loaded Chrome extension and the checkout may differ.
 - [Release process](../RELEASE.md)
 - [Show HN launch package](SHOW_HN_LAUNCH.md) — copy-ready submission,
   technical answers, preflight, and success criteria.
+- [Social launch kit](SOCIAL_LAUNCH_KIT.md) — platform-specific LinkedIn, X,
+  DEV, Reddit, and later Product Hunt drafts with anti-spam guidance.
 - [Relay design status](../RELAY_DEPLOYMENT.md)
 
 ## Historical verification records
