@@ -1,0 +1,101 @@
+name: Bug report
+description: Report a reproducible problem in the Bridge, extension, CLI, MCP, or a typed adapter.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Invictum Browser Bridge. Remove all credentials,
+        cookies, tokens, private URLs, terminal output, and production page content
+        before submitting. Report security vulnerabilities through the private
+        security link in the issue chooser instead.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      options:
+        - Chrome extension
+        - Desktop Authority / Native Host
+        - MCP server
+        - CLI
+        - Agent SDK / control API
+        - WordPress adapter
+        - Terminal adapter
+        - Figma adapter
+        - Documentation / installer
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Release tag, commit SHA, or extension version.
+      placeholder: v0.1.0 or f6ab88c
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Windows, Chrome, Node.js, pnpm, and AI client versions that are relevant.
+      placeholder: |
+        Windows 11 24H2
+        Chrome 140.x
+        Node.js 22.x
+        pnpm 11.x
+        Client: Codex / Cursor / Claude Code
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Provide the smallest deterministic sequence that reproduces the problem.
+      placeholder: |
+        1. Run `pnpm browser health`
+        2. Run `pnpm browser ping`
+        3. Open a non-sensitive test page
+        4. Call ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include sanitized error codes and messages. Do not paste secrets or private page data.
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Sanitized diagnostics
+      description: Optional output from health, ping, capabilities, tests, or a minimal fixture.
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Safety checklist
+      options:
+        - label: I searched existing issues for the same problem.
+          required: true
+        - label: I removed credentials, tokens, cookies, private URLs, and production data.
+          required: true
+        - label: This is not a security vulnerability requiring private disclosure.
+          required: true

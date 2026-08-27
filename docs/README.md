@@ -55,8 +55,12 @@ the loaded Chrome extension and the checkout may differ.
 - [Policy configuration](../POLICY_CONFIGURATION.md)
 - [Development and testing](../DEVELOPMENT.md)
 - [Contributing](../CONTRIBUTING.md)
+- [Support](../SUPPORT.md)
+- [Code of Conduct](../CODE_OF_CONDUCT.md)
 - [Safe Git publishing](../GIT_PUBLISHING.md)
 - [Release process](../RELEASE.md)
+- [Show HN launch package](SHOW_HN_LAUNCH.md) — copy-ready submission,
+  technical answers, preflight, and success criteria.
 - [Relay design status](../RELAY_DEPLOYMENT.md)
 
 ## Historical verification records

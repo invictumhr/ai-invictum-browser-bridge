@@ -476,6 +476,16 @@ reservation, and cleanup in the Desktop Authority path; do not add a second
 control route to the extension. Run the complete local gates before opening a
 pull request and follow [CONTRIBUTING.md](CONTRIBUTING.md).
 
+Use the structured GitHub forms for
+[bug reports](https://github.com/invictumhr/ai-invictum-browser-bridge/issues/new?template=bug_report.yml)
+and
+[feature requests](https://github.com/invictumhr/ai-invictum-browser-bridge/issues/new?template=feature_request.yml).
+Read [SUPPORT.md](SUPPORT.md) for diagnostic guidance and
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) before participating. Security issues
+must use
+[private vulnerability reporting](https://github.com/invictumhr/ai-invictum-browser-bridge/security/advisories/new),
+not a public issue.
+
 Before publishing changes, use the private-data checklist in
 [GIT_PUBLISHING.md](GIT_PUBLISHING.md).
 

@@ -1,5 +1,14 @@
 # Security
 
+## Reporting a vulnerability
+
+Use
+[GitHub private vulnerability reporting](https://github.com/invictumhr/ai-invictum-browser-bridge/security/advisories/new)
+to report a suspected vulnerability. Do not open a public issue and do not
+include live credentials, cookies, tokens, private keys, private URLs, or
+production page contents. Include the affected version, a minimal sanitized
+reproduction, the security impact, and any proposed mitigation.
+
 Detailed login/auth/dialog contracts are in
 [AUTH_AND_DIALOGS.md](AUTH_AND_DIALOGS.md). Platform-specific safety rules are
 in [WordPress wp-admin](docs/WORDPRESS_ADMIN.md),

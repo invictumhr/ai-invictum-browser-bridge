@@ -1,0 +1,69 @@
+name: Feature request
+description: Propose a safer or more capable browser-agent workflow.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the workflow and safety boundary, not only the desired API name.
+        IBB prefers typed, narrowly scoped actions over generic JavaScript or
+        coordinate automation.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What real agent workflow is blocked or unnecessarily fragile today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Proposed workflow
+      description: Show the ideal agent sequence and expected verification result.
+      placeholder: ping -> open -> snapshot -> typed action -> verify -> unlock
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Preferred integration surface
+      options:
+        - New typed browser action
+        - Improvement to an existing action
+        - WordPress adapter
+        - Terminal adapter
+        - Figma adapter
+        - MCP / CLI / SDK ergonomics
+        - Documentation or installation
+        - Unsure
+    validations:
+      required: true
+
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety and authorization considerations
+      description: What data could be exposed or mutated, and what confirmation or verification should be required?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Explain any semantic, API, JavaScript, screenshot, or coordinate workarounds already tried.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues and current runtime capabilities.
+          required: true
+        - label: The proposal does not require bypassing Chrome permissions, User Stop, policy, or authorization checks.
+          required: true
