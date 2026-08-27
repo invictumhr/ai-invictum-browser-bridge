@@ -110,6 +110,37 @@ Password, OTP, payment, token and credential-like fields are intentionally unrea
 
 For `<input type="file">`, use `browser.set_file_input_files` with an absolute existing path and explicit user authorization. Hidden upload-widget inputs require `includeHidden: true` plus `visible: false`. `LOCAL_FILE_NOT_FOUND` means the indexed path is wrong; `LOCAL_FILE_ACCESS_DENIED` means Desktop Authority cannot read it. Multiple paths require the HTML `multiple` attribute. If CDP attach fails, close DevTools or another debugger on that tab and retry once; the adapter always detaches and removes its temporary marker in `finally`.
 
+## WordPress content disappears after save
+
+Do not set only the visible DOM of Gutenberg, Classic Editor, CodeMirror, or a
+plugin editor. The page may submit a separate authoritative model or hidden
+textarea and overwrite cosmetic DOM changes. Use
+`browser.get_wordpress_editor` / `browser.edit_wordpress_editor` when supported,
+or the generic model-backed `browser.type_text` editor path. Re-read the
+authoritative editor model after save and verify the persisted page/notice.
+
+For classic **Appearance > Menus**, use `browser.get_wordpress_menu` and
+`browser.edit_wordpress_menu`. Move complete subtrees, not individual visual
+rows, and re-read the entire saved preorder tree; WordPress may normalize
+positions on reload. See [docs/WORDPRESS_ADMIN.md](docs/WORDPRESS_ADMIN.md) and
+[docs/WORDPRESS_MENUS.md](docs/WORDPRESS_MENUS.md).
+
+If navigation is blocked by **Leave site?**, use the proactive typed
+`beforeunload` workflow. Do not repeatedly navigate or refresh behind a visible
+native modal.
+
+## Figma tools return empty anchors or partial layers
+
+Run `browser.figma_healthcheck` first. It separates a non-design URL, a design
+file that has not initialized, and a changed Figma UI anchor. Figma may require
+one visible initialization; use the documented agent window/background-first
+readiness rule instead of repeatedly stealing user focus.
+
+The layer tree is virtualized. `get_figma_layers` reports only rendered rows;
+scroll/select to render another area and always pass the returned row name with
+its transient `layerId`. Screenshots, not DOM snapshots, show the WebGL artwork.
+See [docs/FIGMA.md](docs/FIGMA.md).
+
 ## HTTP Basic Auth / `AUTHENTICATION_FAILED`
 
 Call `browser.get_http_auth_state` first. Only `scheme: "basic"`, non-proxy, main-frame challenges are supported. `browser.authenticate_http` reloads the current same-origin HTTP(S) tab and uses the supplied credentials once. `AUTHENTICATION_FAILED` means no Basic challenge appeared, the navigation failed, or the server challenged again after the attempt. Verify origin/realm and user-supplied data; do not loop retries. Credentials are cleared even on error.
@@ -159,11 +190,18 @@ cannot recover WebSocket frames that occurred before it started.
 ## `TERMINAL_DELIVERY_UNVERIFIED`
 
 The adapter staged the requested text but could not observe that exact draft in
-the xterm/accessibility output or on one unambiguous terminal WebSocket. It
-therefore did not send Enter. Do not run `terminal-exec` again: the draft may
-already be present. Capture the terminal's bounded `screenshotRegion`; if the
-draft is exact, send one separately authorized Enter key. Otherwise clear the
-draft before deciding whether a new input action is safe.
+the xterm/accessibility output or on one unambiguous terminal WebSocket. It did
+not send Enter and then attempted `Ctrl+U`, which discards the current line
+without executing it.
+
+- If the error says the staged line **was cleared**, do not send a bare Enter.
+  The original user authorization may be used for one careful retype after the
+  terminal is healthy.
+- If the error says the staged line **could not be cleared**, capture the
+  terminal's bounded `screenshotRegion` before any further input. The partial or
+  complete draft may still be present and could merge with the next command.
+
+Never treat this error as an automatic-retry signal.
 
 ## A terminal command appears in WHM `Search Tools`
 

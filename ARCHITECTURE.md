@@ -36,6 +36,21 @@ MCP and CLI are thin clients of this API and automatically start the built autho
 
 `system.capabilities` returns the exact extension version, supported actions, risk levels and feature flags. `browser.open_tab` and `browser.navigate` accept only credential-free HTTP(S) URLs. `browser.wait_for` performs bounded condition waiting inside the bridge. Snapshot scoping returns only a fresh revision-bound element subtree when the full page is unnecessary.
 
+Platform adapters remain inside the same extension -> Native Host -> Desktop
+Authority path; none creates a privileged side channel:
+
+- WordPress adapters read authoritative wp-admin/list-table/editor/menu models
+  and use exact advertised action keys or typed edit operations.
+- The terminal adapter detects and targets one revision-bound xterm rather than
+  an arbitrary focused input.
+- The Figma adapter reads stable DOM chrome anchors around the WebGL canvas and
+  verifies virtualized layer-row identity before selection.
+- Generic file, dialog, screenshot, console/network/mobile/PDF, DOM/CSS/event,
+  and same-origin API adapters all retain the normal policy, audit,
+  reservation, cancellation, and cleanup contract.
+
+See the platform guides in [docs/README.md](docs/README.md).
+
 Canvas terminals use a separate revision-bound path: an isolated fixed probe
 detects xterm roots, a fixed CDP routine reads only a bounded active/scrollback
 buffer, and Chrome trusted input targets the terminal helper without activating
@@ -50,6 +65,10 @@ screenshot region for bounded canvas capture. Desktop Authority remains the
 policy/audit boundary: detection is R0, readback is R2, and every terminal
 text/key action is R3. Command content is represented in audit only by hash and
 length.
+
+When draft delivery cannot be proved, Enter is withheld. The adapter attempts
+`Ctrl+U` to discard the staged line and reports whether cleanup was confirmed;
+it never converts uncertainty into a bare Enter.
 
 Tab-scoped commands are delivered to the top frame only. `chrome.tabs.sendMessage`
 without a frame reaches every frame that has a listener and resolves with

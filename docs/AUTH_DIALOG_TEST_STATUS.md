@@ -1,5 +1,9 @@
 # Auth/dialog test status
 
+> Dated verification record. Use [../AGENT_USAGE.md](../AGENT_USAGE.md),
+> [../AUTH_AND_DIALOGS.md](../AUTH_AND_DIALOGS.md), and runtime capabilities for
+> current operating instructions.
+
 Last updated: 2026-07-22 (Europe/Zagreb).
 
 ## Completed offline verification

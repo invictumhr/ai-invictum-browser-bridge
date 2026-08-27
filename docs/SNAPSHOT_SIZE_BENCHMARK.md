@@ -1,5 +1,8 @@
 # Snapshot size benchmark
 
+> Dated measurement record. Snapshot formats and limits can evolve; use runtime
+> capabilities and the current snapshot schemas for the operating contract.
+
 Measured on 2026-07-22 against the built and reloaded unpacked extension. Byte counts are compact UTF-8 JSON for the response `data` object, not pretty-printed terminal output. Input values are never included.
 
 The original reported fixture response was approximately 65 KB of pretty-printed JSON for 35 elements. The current compact 35-element response is 14,699 bytes: roughly 77% smaller, exceeding the requested 40% fixture target.

@@ -1,6 +1,11 @@
 # Security
 
-Detailed login/auth/dialog contracts are in [AUTH_AND_DIALOGS.md](AUTH_AND_DIALOGS.md).
+Detailed login/auth/dialog contracts are in
+[AUTH_AND_DIALOGS.md](AUTH_AND_DIALOGS.md). Platform-specific safety rules are
+in [WordPress wp-admin](docs/WORDPRESS_ADMIN.md),
+[WordPress menus](docs/WORDPRESS_MENUS.md),
+[terminal automation](docs/TERMINAL_AUTOMATION.md), and
+[Figma support](docs/FIGMA.md).
 
 ## Current invariants
 
@@ -17,6 +22,17 @@ Detailed login/auth/dialog contracts are in [AUTH_AND_DIALOGS.md](AUTH_AND_DIALO
 - The Bridge cannot govern an external AI/MCP client's transcript or tool-argument retention. Users must treat credentials supplied to an agent as disclosed to that client even though Bridge audit/persistence excludes them.
 - `browser.handle_javascript_dialog` is R2 and requires an explicit-user-instruction reference. It attaches Chrome debugger/CDP only to the reserved HTTP(S) tab for the duration of one bounded action, handles only `alert`, `confirm`, `prompt`, or `beforeunload`, then detaches in `finally`. Prompt text is never audited.
 - `browser.set_file_input_files` is R2 because a page can react to file-input events with an immediate upload. Desktop Authority accepts only 1–20 absolute paths to existing readable regular files, canonicalizes them, and sends them only through the local in-memory transport to one short-lived `DOM.setFileInputFiles` call. Paths and filenames are excluded from results and audit; only count, target metadata and authorization source are recorded. The action never submits the form.
+- WordPress read actions are bounded and omit nonces/action URLs. WordPress
+  mutations are R2, require a current authoritative model plus an explicit user
+  instruction, and verify the resulting editor/menu/list-table state. Batches
+  do not weaken those checks.
+- Terminal discovery is R0, bounded output readback is R2, and every terminal
+  text/key action is R3. Raw commands/output are excluded from audit. Before a
+  requested Enter, the exact draft must be observed in one approved source; on
+  failure Enter is withheld and the adapter attempts to discard the line.
+- Figma document/layer/property reads are R0 and return only the browser UI
+  chrome, not hidden canvas/document data. Selection is R1 and verifies both a
+  virtualized row index and its name to reduce stale-row mis-selection.
 - `browser.evaluate` uses a bounded tab-scoped Chrome Runtime attachment, optionally creates an isolated execution world, embeds the already policy-approved expression directly into a fixed serialization wrapper, releases its object group and detaches in `finally`. It never calls `eval` or `Function`. Both desktop and extension independently accept only the exact allowlisted grammar; credential, storage, network, navigation, click, submit, event-handler and import/require capabilities remain denied.
 - `browser.mutate_dom` is R2, revision-bound and explicitly authorized. Sensitive targets, internal bridge markers, executable/resource-loader mutation targets, event-handler/style/value/srcdoc/credential-like attributes, automatic resource attributes and unsafe URLs are denied. Inserted HTML removes scripts, stylesheets, frames, embeds, metadata, SVG resource/animation elements, handler attributes and unsafe/resource attributes. Inline style operations share the CSS network/credential-side-channel guard. Safe removal operations remain available. Raw text/HTML/style values are omitted from audit.
 - `browser.manage_css` is R2 and explicitly authorized. CSS escapes/comments, external resource loads, `[value]`/`attr(...)` credential side channels, password-mask disabling and executable legacy constructs are denied. Exact CSS is kept only in `chrome.storage.session` for reliable removal after MV3 suspension, omitted from results/audit, and automatically removed on explicit unlock, lease expiry, User Stop or reauthorization.

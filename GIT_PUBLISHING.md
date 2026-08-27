@@ -49,20 +49,28 @@ pnpm test
 pnpm build
 ```
 
-## First private GitHub remote
+## GitHub remote and repository visibility
 
 Authenticate with GitHub CLI rather than embedding credentials in a remote URL:
 
 ```powershell
 gh auth status
-gh repo create invictum-browser-bridge --private --source . --remote origin
+gh repo create invictumhr/ai-invictum-browser-bridge --public --source . --remote origin
 git push -u origin main
 ```
 
-Inspect the repository settings after creation and enable GitHub secret
-scanning and push protection when the selected plan supports them. Do not make
-the repository public without a separate privacy, licensing, dependency, image,
-and threat-model review.
+If the repository already exists, add the credential-free HTTPS URL instead:
+
+```powershell
+git remote add origin https://github.com/invictumhr/ai-invictum-browser-bridge.git
+git push -u origin main
+```
+
+The source is MIT-licensed and intended to be open source. GitHub visibility is
+still a separate repository setting: complete the privacy, secret, dependency,
+image, generated-file, and threat-model review before changing a private remote
+to public. Enable GitHub secret scanning and push protection when available.
+Never rely on repository privacy to protect a credential.
 
 ## If a real secret is ever committed
 

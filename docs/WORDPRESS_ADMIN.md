@@ -13,6 +13,24 @@ cause the most automation friction:
 These helpers work in a background tab. Do not activate a WordPress tab merely
 to inspect it, edit a draft, save, take a screenshot, or verify a notice.
 
+## Support matrix
+
+| WordPress area                                                   | Preferred IBB path                                                                  |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Posts, Pages, custom post types, Media, Comments, Users, Plugins | `get_wordpress_admin` then an advertised row or bulk action                         |
+| Gutenberg or Classic Editor                                      | `get_wordpress_editor` then `edit_wordpress_editor`; verify the authoritative model |
+| Appearance > Menus (classic screen)                              | `get_wordpress_menu` and `edit_wordpress_menu`; see the dedicated menu guide        |
+| Media/file attachment                                            | `set_file_input_files`; never synthesize `FileList` in JavaScript                   |
+| Plugin settings, ACF-like fields, custom wp-admin forms          | semantic snapshot/find plus typed form/editor actions                               |
+| Same-origin REST endpoint                                        | `page_api_request` with bounded response and optional WordPress nonce discovery     |
+| Unsaved-changes navigation                                       | proactively arm the typed `beforeunload` handler                                    |
+
+The adapter does not claim generic support for every third-party WordPress
+plugin or the Site Editor's Navigation block. Inspect those pages with the
+general semantic tools and preserve the same authorization and verification
+rules. Never use raw JavaScript or coordinate dragging to imitate a supported
+typed WordPress action.
+
 ## Tools
 
 | Control action                        | MCP tool                               | Risk | Purpose                                                        |

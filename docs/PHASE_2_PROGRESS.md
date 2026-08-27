@@ -1,5 +1,10 @@
 # Phase 2 progress
 
+> Historical record: this progress log predates the current WordPress, Figma,
+> WHM/cPanel terminal, and advanced diagnostics surfaces. See
+> [../README.md](../README.md), [README.md](README.md), and runtime
+> `system.capabilities` for the current contract.
+
 ## Completed vertical slice: `browser.list_tabs`
 
 - typed request, response, and tab metadata contracts

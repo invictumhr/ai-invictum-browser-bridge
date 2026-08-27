@@ -1,5 +1,9 @@
 # Real-Chrome and PageSpeed test report
 
+> Dated verification history. Counts inside individual runs describe the build
+> tested on that date. The current source gate expects 54 runtime actions and 61
+> MCP tools; runtime `system.capabilities` remains authoritative.
+
 Last updated: 2026-08-17 (Europe/Zagreb).
 
 The current prepared source adds bounded terminal-transport readback for WHM
@@ -8,7 +12,8 @@ observes WebSocket frames only on the target tab, selects a socket only when it
 uniquely carried the exact staged draft, never returns raw frames, redacts the
 bounded decoded stream, and discards capture state in `finally`. Submitted text
 now requires `buffer_observed` or `transport_observed` draft proof before Enter;
-otherwise non-retryable `TERMINAL_DELIVERY_UNVERIFIED` leaves the draft staged
+otherwise non-retryable `TERMINAL_DELIVERY_UNVERIFIED` withholds Enter and
+attempts to clear the staged line
 and sends no Enter. Focused protocol, transport, ambiguity, cleanup, redaction,
 and fail-closed unit tests pass. This source requires Reload before live WHM
 transport evidence is claimed.

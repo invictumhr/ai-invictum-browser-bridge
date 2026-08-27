@@ -22,6 +22,7 @@ function Get-RepositoryFiles {
     return @(
         $items |
             Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+            Where-Object { $Staged -or (Test-Path -LiteralPath $_ -PathType Leaf) } |
             ForEach-Object { $_.Replace('\', '/') } |
             Sort-Object -Unique
     )

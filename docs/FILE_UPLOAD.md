@@ -73,6 +73,17 @@ After any future extension rebuild and user Reload at `chrome://extensions`, run
 powershell -ExecutionPolicy Bypass -File .\scripts\verify-after-reload.ps1
 ```
 
-The script starts/repairs the normal authority through the CLI, verifies `46` runtime actions plus upload/WordPress/advanced/identity/productivity feature flags, ensures the current fixture is available, then runs the complete real-Chrome kitchen-sink smoke. The smoke requires its disposable agent-created tab to close in `finally`; cleanup failure fails the smoke instead of being hidden. A browser-native modal must be handled proactively because Chrome can block even `tabs.remove` after the modal is visible. If 47822 already serves an older fixture, the script leaves that process untouched, selects a free loopback port from 47822–47832, passes the exact URL through `INVICTUM_FIXTURE_URL`, and stops only the fixture process it started in `finally`. It does not reload the extension or bypass Chrome permissions.
+The script starts/repairs the normal authority through the CLI, verifies the
+current 54 runtime actions and 61 MCP tools plus the required feature flags,
+ensures the current fixture is available, then runs the complete real-Chrome
+kitchen-sink smoke. The smoke requires its disposable agent-created tab to
+close in `finally`; cleanup failure fails the smoke instead of being hidden. A
+browser-native modal must be handled proactively because Chrome can block even
+`tabs.remove` after the modal is visible. If 47822 already serves an older
+fixture, the script leaves that process untouched, selects a free loopback port
+from 47822-47832, passes the exact URL through `INVICTUM_FIXTURE_URL`, and stops
+only the fixture process it started in `finally`. It does not reload the
+extension or bypass Chrome permissions. Runtime capabilities and the script are
+authoritative if a later release changes the counts.
 
 The final 2026-07-23 run reached and passed every upload assertion and the complete cross-feature regression gate.

@@ -45,9 +45,19 @@ Chrome launches the registered Native Host; no second terminal is needed. See [E
 
 ## Test design
 
-Unit tests cover strict protocol schemas, navigation URL restrictions, the exact runtime capability contract, wait conditions, timeouts/cancellation, permission/error mapping, semantic snapshots/search, scoped subtree validation, typed interactions, local file-input CDP attachment/cleanup, constrained JavaScript, typed DOM/CSS schemas, CSS external/credential-side-channel denial, unlock/lease/User-Stop cleanup, raw-JavaScript CDP lifecycle/protected-source denial, screenshots, coordinate hit testing, ephemeral HTTP Basic auth, native JavaScript dialog CDP cleanup, policy, audit, Native Messaging framing, Agent SDK cleanup, and size limits.
+Unit tests cover strict protocol schemas, navigation URL restrictions, the exact
+runtime capability contract, waits/timeouts/cancellation, permission/error
+mapping, semantic snapshots/search, typed interactions, WordPress editors and
+menus, Figma anchors and selection, xterm/WHM terminal focus and delivery,
+local-file CDP attachment, constrained and raw JavaScript, DOM/CSS/events,
+console/network/mobile/PDF adapters, screenshots, authentication/dialogs,
+reservation cleanup, policy, redacted audit, Native Messaging framing, Agent
+SDK cleanup, and size limits.
 
-Integration tests emulate Native Messaging streams and verify the real Desktop Authority, persistent HTTP control API, protocol routing, reconnect behavior, form controls, explicitly authorized submit, auth/dialog actions, and credential/prompt audit exclusion.
+Integration tests emulate Native Messaging streams and verify Desktop Authority,
+the persistent HTTP control API, protocol routing, reconnect behavior, forms,
+WordPress and terminal routing, explicitly authorized actions, and sensitive
+argument/audit exclusion.
 
 ## MCP smoke without Chrome
 
@@ -82,10 +92,20 @@ The auth/dialog harness uses the persistent control API. It validates a real bro
 
 The kitchen-sink harness also uses the persistent control API. It creates its own tab and validates outline/minimal/interactive/semantic/full plus scoped snapshots; semantic find and truncation flags; text, search, email, number, date and textarea events; single/multiple local-file attachment plus missing-path denial and native events; select, checkbox and radio actions; contenteditable, ProseMirror-like and CKEditor-like editors; open Shadow DOM; safe N-1 relocation and fingerprint rejection; constrained JavaScript; typed DOM mutation/HTML sanitization including stylesheet and inline-network denial; inline/computed CSS inspection and CSS add/remove; delegated listener/source discovery for a JS-generated dropdown; scoped standard/custom event capture with monotonic sequence after clear; raw expression/function JavaScript and protected-source denial; bounded screenshots and coordinate clicks; non-form implicit buttons; submit denial/authorization; and guaranteed unlock.
 
-After rebuilding/reloading the extension, `scripts/verify-after-reload.ps1` is the one-step gate: it checks ping, exactly 27 runtime actions, upload plus all five advanced feature flags, the current fixture, and the complete kitchen-sink smoke.
+After rebuilding/reloading the extension, `scripts/verify-after-reload.ps1` is
+the one-step gate. The current gate checks ping, exactly 54 runtime actions, 61
+MCP tools, the required feature flags, the deterministic fixture, and the
+complete kitchen-sink smoke. Runtime `system.capabilities` and the script are
+the source of truth when a later release changes those counts.
 
 For normal agent operation do not use the legacy harness: keep the persistent authority running and exercise the browser through MCP/CLI/control API.
 
 `smoke:chrome:agent-control` is the exception: it deliberately uses the persistent control API, verifies CLI auto-start, runtime capabilities, automatic `open_tab`, `wait_for`, full-to-scoped snapshot reduction, navigation redaction, DOM-stability waiting, and guaranteed SDK unlock without taking ownership of 47821.
+
+Platform-specific real-Chrome procedures are documented in
+[docs/WORDPRESS_ADMIN.md](docs/WORDPRESS_ADMIN.md),
+[docs/WORDPRESS_MENUS.md](docs/WORDPRESS_MENUS.md),
+[docs/TERMINAL_AUTOMATION.md](docs/TERMINAL_AUTOMATION.md), and
+[docs/FIGMA.md](docs/FIGMA.md).
 
 The latest live-site validation and reproducible Google PageSpeed workflow are recorded in [docs/REAL_CHROME_TEST_REPORT.md](docs/REAL_CHROME_TEST_REPORT.md).

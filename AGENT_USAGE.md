@@ -82,9 +82,8 @@ Chrome Native Host -> extension -> selected tab
 - Both listeners are loopback-only.
 - The extension ID is installation-specific; never hard-code an ID from an
   unrelated profile.
-- Source: `D:\laragon\www\invictum\invictum-browser-bridge`
-- Loaded extension:
-  `D:\laragon\www\invictum\invictum-browser-bridge\apps\extension\dist`
+- Source: the repository root containing this guide.
+- Loaded extension: `<repository>\apps\extension\dist`.
 
 ## 3. MCP workflow
 
@@ -818,11 +817,12 @@ Some vendor builds do not expose the xterm buffer. `terminal-exec` now stages
 and verifies before Enter automatically. When its selected terminal transport
 is observable, the result can use `source:"websocket_stream"` and
 `draftVerification:"transport_observed"`. If it returns
-`TERMINAL_DELIVERY_UNVERIFIED`, the exact draft may still be present but Enter
-was not sent: verify it with a bounded terminal screenshot using the
-descriptor's `screenshotRegion`, send one separately authorized Enter, and
-verify the result. Never retype or repeat a command merely because programmatic
-readback is unavailable.
+`TERMINAL_DELIVERY_UNVERIFIED`, Enter was not sent. Current builds attempt
+`Ctrl+U` before returning the error. Read the error detail: if it confirms that
+the staged line was cleared, repeat the still-authorized command rather than
+sending a bare Enter; if it says the line could not be cleared, inspect a
+bounded terminal screenshot before any further input. Never retype or repeat a
+command merely because programmatic readback is unavailable.
 
 Terminal text results also include `draftVerification`:
 
@@ -846,9 +846,11 @@ Terminal input also returns `deliveryVerification`:
 When readback is unavailable and the caller did not explicitly request a wait,
 the adapter returns immediately instead of spending the default 15 seconds
 polling an impossible source. `unavailable` is never permission to resend. Use
-the draft/screenshot/one-Enter procedure and the single foreground fallback
-only when the canvas still does not accept background input after focus
-emulation.
+the draft/screenshot/one-Enter procedure only for an intentionally
+non-submitting `terminal-type` action whose exact draft is visibly present. For
+`TERMINAL_DELIVERY_UNVERIFIED`, follow the error's cleared/not-cleared state.
+Use the single foreground fallback only when the canvas still does not accept
+background input after focus emulation.
 
 See [docs/TERMINAL_AUTOMATION.md](docs/TERMINAL_AUTOMATION.md) for MCP, CLI,
 SDK/control-API schemas, wait behavior, WHM guidance, audit privacy, and tests.
@@ -946,23 +948,23 @@ new snapshot.
 
 ## 19. Errors and recovery
 
-| Code                           | Meaning                                          | Agent response                                                    |
-| ------------------------------ | ------------------------------------------------ | ----------------------------------------------------------------- |
-| `PERMISSION_DENIED`            | Site access/session authorization is missing     | inspect tab/origin details; do not bypass                         |
-| `POLICY_DENIED`                | User Stop or policy rejected the operation       | obey; request user action only when required                      |
-| `CONFIRMATION_REQUIRED`        | R2/R3 authorization is missing                   | connect the current explicit instruction                          |
-| `INVALID_PARAMETERS`           | strict schema rejected keys/values               | use `issues` and `allowedKeys`; correct the call                  |
-| `STALE_ELEMENT_REFERENCE`      | page/revision/reference changed                  | use returned relocation or refresh snapshot/find                  |
-| `ELEMENT_NOT_INTERACTABLE`     | target is hidden/disabled/unsupported            | inspect current state; choose a semantic alternative              |
-| `SENSITIVE_INPUT_BLOCKED`      | credential/payment/OTP target                    | user handles the value                                            |
-| `SCRIPT_POLICY_DENIED`         | constrained evaluator blocked source             | use a typed action; do not widen grammar to bypass                |
-| `TERMINAL_DELIVERY_UNVERIFIED` | draft was staged but page receipt was not proven | inspect terminal crop; never retype; send Enter only after proof  |
-| `TERMINAL_FOCUS_LOST`          | xterm was not the trusted keyboard target        | stop; inspect terminal and other focused fields; never auto-retry |
-| `TIMEOUT`                      | load/wait/transport timed out                    | check native dialog, health, and ping; retry once if meaningful   |
-| `BROWSER_API_ERROR`            | Chrome API/CDP failure                           | confirm tab and DevTools state; retry once if marked retryable    |
-| `LOCAL_FILE_NOT_FOUND`         | upload path does not exist                       | correct the absolute path                                         |
-| `LOCAL_FILE_ACCESS_DENIED`     | file is unreadable/unavailable                   | inspect permissions/locks                                         |
-| `MESSAGE_TOO_LARGE`            | bounded output exceeded protocol limit           | reduce scope, size, range, or buffer                              |
+| Code                           | Meaning                                      | Agent response                                                    |
+| ------------------------------ | -------------------------------------------- | ----------------------------------------------------------------- |
+| `PERMISSION_DENIED`            | Site access/session authorization is missing | inspect tab/origin details; do not bypass                         |
+| `POLICY_DENIED`                | User Stop or policy rejected the operation   | obey; request user action only when required                      |
+| `CONFIRMATION_REQUIRED`        | R2/R3 authorization is missing               | connect the current explicit instruction                          |
+| `INVALID_PARAMETERS`           | strict schema rejected keys/values           | use `issues` and `allowedKeys`; correct the call                  |
+| `STALE_ELEMENT_REFERENCE`      | page/revision/reference changed              | use returned relocation or refresh snapshot/find                  |
+| `ELEMENT_NOT_INTERACTABLE`     | target is hidden/disabled/unsupported        | inspect current state; choose a semantic alternative              |
+| `SENSITIVE_INPUT_BLOCKED`      | credential/payment/OTP target                | user handles the value                                            |
+| `SCRIPT_POLICY_DENIED`         | constrained evaluator blocked source         | use a typed action; do not widen grammar to bypass                |
+| `TERMINAL_DELIVERY_UNVERIFIED` | Enter withheld; page receipt was not proven  | follow cleared/not-cleared detail; inspect before uncertain input |
+| `TERMINAL_FOCUS_LOST`          | xterm was not the trusted keyboard target    | stop; inspect terminal and other focused fields; never auto-retry |
+| `TIMEOUT`                      | load/wait/transport timed out                | check native dialog, health, and ping; retry once if meaningful   |
+| `BROWSER_API_ERROR`            | Chrome API/CDP failure                       | confirm tab and DevTools state; retry once if marked retryable    |
+| `LOCAL_FILE_NOT_FOUND`         | upload path does not exist                   | correct the absolute path                                         |
+| `LOCAL_FILE_ACCESS_DENIED`     | file is unreadable/unavailable               | inspect permissions/locks                                         |
+| `MESSAGE_TOO_LARGE`            | bounded output exceeded protocol limit       | reduce scope, size, range, or buffer                              |
 
 Recovery order:
 

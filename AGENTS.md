@@ -23,6 +23,9 @@ Read the specialized guide that applies to the task:
 - WordPress admin list tables, notices, Gutenberg, and Classic Editor:
   [docs/WORDPRESS_ADMIN.md](docs/WORDPRESS_ADMIN.md). Prefer typed WordPress
   actions and authoritative editor models.
+- Figma browser design files: [docs/FIGMA.md](docs/FIGMA.md). Run the typed
+  healthcheck first, treat the rendered layer tree as virtualized/partial, and
+  use screenshots for the WebGL canvas.
 - Advanced DOM/CSS work, custom widgets, event listeners, event capture, and
   raw-JavaScript fallback:
   [docs/ADVANCED_BROWSER_TOOLS.md](docs/ADVANCED_BROWSER_TOOLS.md). Always
@@ -59,6 +62,7 @@ Read the specialized guide that applies to the task:
 - prefilled login, ephemeral HTTP Basic Auth, and native dialogs;
 - explicitly authorized local file upload without path leakage in audit logs;
 - typed WordPress menu/admin/editor workflows;
+- typed Figma document/layer/property inspection and safe selection;
 - advanced inspection, event capture, DOM/CSS mutation, and raw-JS fallback;
 - metadata-only network diagnostics, synthetic gestures, and PDF export;
 - explicitly authorized, bounded browser-terminal detection, readback, trusted

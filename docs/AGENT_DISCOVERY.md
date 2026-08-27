@@ -34,7 +34,7 @@ only when the request needs it.
 Build first, then run:
 
 ```powershell
-Set-Location D:\laragon\www\invictum\invictum-browser-bridge
+Set-Location <repository>
 pnpm build
 powershell -ExecutionPolicy Bypass -File .\scripts\install-agent-discovery.ps1
 ```
@@ -50,7 +50,12 @@ The script:
 - registers a Claude user-scoped MCP when the Claude Code CLI exists;
 - prepares `%USERPROFILE%\.cursor\IBB_USER_RULE.txt` for the Cursor User Rules
   field;
-- updates `D:\tools\AI_PC_START.md` when that file exists.
+- updates the optional local `D:\tools\AI_PC_START.md` inventory when that file
+  already exists.
+
+The generated global rule contains the clone's resolved absolute path. Moving
+the repository requires rerunning the installer so agents receive the new
+`AGENT_TRIGGER.md` location.
 
 The script is idempotent. Rerunning it replaces only the content between its
 own markers.

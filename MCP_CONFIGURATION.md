@@ -26,9 +26,11 @@ is rerun after Claude Code installation.
 Build and register once:
 
 ```powershell
-Set-Location D:\laragon\www\invictum\invictum-browser-bridge
+Set-Location <repository>
 pnpm build
-codex mcp add invictum-browser -- "C:\Program Files\nodejs\node.exe" "D:\laragon\www\invictum\invictum-browser-bridge\apps\mcp\dist\index.js"
+$repository = (Resolve-Path .).Path
+$node = (Get-Command node.exe).Source
+codex mcp add invictum-browser -- $node (Join-Path $repository 'apps\mcp\dist\index.js')
 codex mcp get invictum-browser
 ```
 
@@ -40,10 +42,11 @@ codex mcp remove invictum-browser
 
 ## Generic stdio MCP client
 
-Configure command `C:\Program Files\nodejs\node.exe` with argument:
+Configure the absolute `node.exe` returned by `Get-Command node.exe` as the
+command, with this absolute argument:
 
 ```text
-D:\laragon\www\invictum\invictum-browser-bridge\apps\mcp\dist\index.js
+<repository>\apps\mcp\dist\index.js
 ```
 
 Optional environment variables:
@@ -70,7 +73,9 @@ script installs the trigger block and, when the `claude` command exists, runs
 the equivalent of:
 
 ```powershell
-claude mcp add --scope user invictum-browser -- "C:\Program Files\nodejs\node.exe" "D:\laragon\www\invictum\invictum-browser-bridge\apps\mcp\dist\index.js"
+$repository = (Resolve-Path .).Path
+$node = (Get-Command node.exe).Source
+claude mcp add --scope user invictum-browser -- $node (Join-Path $repository 'apps\mcp\dist\index.js')
 ```
 
 ## MCP tools
@@ -80,6 +85,13 @@ session cleanup, and a forward-compatible escape hatch. It also exposes six
 MCP prompts for safe web work, login, form filling, WordPress editing, and
 bounded diagnostics, and authorized browser-terminal work. `invictum_call`
 must never bypass policy.
+
+Purpose-built groups include typed WordPress wp-admin/editor/menu tools, five
+Figma document/layer/property/selection/health tools, six WHM/cPanel/xterm
+terminal tools, local upload, authentication/dialog helpers, screenshots and
+annotations, console/network/mobile/PDF diagnostics, and same-origin page API
+calls. Start with `invictum_capabilities`; do not infer support from a hardcoded
+tool count.
 
 Tool schemas include standard MCP read-only, destructive, idempotent, and
 open-world annotations. Mutating tools additionally support adapter-level
@@ -103,9 +115,11 @@ first inspecting terminal state. Check `draftVerification` before reasoning
 about submission and `deliveryVerification` after every input. For text with
 `submit:true`, the Bridge sends Enter only after the exact draft is observed in
 the xterm/accessibility buffer or on exactly one action-local terminal
-WebSocket. Otherwise it returns `TERMINAL_DELIVERY_UNVERIFIED`, leaves the
-draft staged, and withholds Enter. `unavailable` is not a timeout or retry
-signal; inspect the bounded terminal crop and never retype an uncertain draft.
+WebSocket. Otherwise it withholds Enter, attempts to discard the staged line
+with `Ctrl+U`, and returns `TERMINAL_DELIVERY_UNVERIFIED`. The error states
+whether clearing was confirmed. If it was not, inspect the bounded terminal
+crop and never retype an uncertain draft. `unavailable` is not a timeout or
+automatic-retry signal.
 
 Always stop/reset those temporary tools and unlock a controlled tab in `finally`, or call `invictum_end_session` once on task completion. Screenshot output is emitted as MCP image content rather than copied into text. See [docs/DEVTOOLS_CONSOLE_AND_MOBILE.md](docs/DEVTOOLS_CONSOLE_AND_MOBILE.md).
 

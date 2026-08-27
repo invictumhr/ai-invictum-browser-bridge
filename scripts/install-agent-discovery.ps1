@@ -112,7 +112,7 @@ function Find-Command {
     return $null
 }
 
-$globalRule = [System.IO.File]::ReadAllText($globalRulePath)
+$globalRule = [System.IO.File]::ReadAllText($globalRulePath).Replace('{{REPOSITORY_ROOT}}', $repoRoot)
 $homePath = [Environment]::GetFolderPath('UserProfile')
 $results = [ordered]@{}
 

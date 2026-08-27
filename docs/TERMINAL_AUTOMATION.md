@@ -207,11 +207,13 @@ If a vendor xterm does not expose its JavaScript buffer, an input action may
 instead report `source:"websocket_stream"`. WebSocket capture starts with that
 action and cannot recover older scrollback for a later standalone read. If
 neither native/accessibility readback nor one unambiguous terminal transport can
-prove the staged draft, `terminal-exec` returns non-retryable
-`TERMINAL_DELIVERY_UNVERIFIED` and does not send Enter. Use the detected
-terminal's `screenshotRegion`, verify the already staged draft, send one
-separately authorized Enter key, then verify the resulting screenshot. Never
-retype merely because programmatic readback is unavailable.
+prove the staged draft, `terminal-exec` does not send Enter, attempts to discard
+the line with `Ctrl+U`, and returns non-retryable
+`TERMINAL_DELIVERY_UNVERIFIED`. If the error confirms that the line was cleared,
+retype the still-authorized command rather than sending a bare Enter. If
+clearing could not be confirmed, use the detected terminal's
+`screenshotRegion` before any further input because the draft may still be
+present. Never retype merely because programmatic readback is unavailable.
 
 For commands that legitimately exceed 120 seconds, start the command once,
 then make separate explicitly authorized `read_terminal` or
@@ -304,8 +306,9 @@ or:
   region and WHM search field, and do not infer that the command was absent.
 - `terminal-exec` stages text before Enter and requires exact evidence from the
   native/accessibility readback or one uniquely identified terminal WebSocket.
-  `TERMINAL_DELIVERY_UNVERIFIED` means Enter was withheld, not that the draft is
-  absent. Inspect the terminal crop instead of retrying the text.
+  `TERMINAL_DELIVERY_UNVERIFIED` means Enter was withheld and `Ctrl+U` cleanup
+  was attempted. Follow the returned cleared/not-cleared detail; inspect the
+  terminal crop before retrying whenever cleanup was not proved.
 - Some WHM xterm builds detect successfully but accept or paint trusted text
   only while the tab is active even after focus emulation. Type a harmless
   authorized draft without Enter and verify it visually. If the background

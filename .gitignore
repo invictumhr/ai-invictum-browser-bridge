@@ -50,7 +50,6 @@ test-results/
 
 # User-generated screenshots are deliberately not source-controlled
 screenshots/
-24sata-home.jpg
 
 # OS and editor metadata
 .DS_Store

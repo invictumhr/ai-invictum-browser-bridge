@@ -6,7 +6,7 @@ phrases as an explicit request to use Invictum Browser Bridge.
 
 Before the first browser action, read:
 
-`D:\laragon\www\invictum\invictum-browser-bridge\AGENT_TRIGGER.md`
+`{{REPOSITORY_ROOT}}\AGENT_TRIGGER.md`
 
 Prefer the `invictum_*` MCP tools. If they are unavailable, follow the documented
 CLI fallback instead of silently switching to another browser automation

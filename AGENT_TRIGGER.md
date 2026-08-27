@@ -22,10 +22,9 @@ user-facing aliases.
    browser, Playwright profile, or direct Chrome-debugging connection.
 2. Start with `invictum_ping`, then `invictum_capabilities`. Installed runtime
    capabilities are the source of truth.
-3. If MCP is unavailable, read
-   `D:\laragon\www\invictum\invictum-browser-bridge\AGENT_USAGE.md` and use the
-   documented CLI/control-API fallback. The CLI starts or repairs Desktop
-   Authority automatically.
+3. If MCP is unavailable, read [AGENT_USAGE.md](AGENT_USAGE.md) from this
+   repository and use the documented CLI/control-API fallback. The CLI starts
+   or repairs Desktop Authority automatically.
 4. Use `invictum_open_tab` for a new page. Omit `active` unless the task
    genuinely requires showing or focusing the tab. Background work must not
    interrupt the user. Agent tabs open in the agent's own Chrome window, so they
@@ -57,8 +56,10 @@ user-facing aliases.
     text/key input requires exact R3 authorization. Inspect `draftVerification`
     and `deliveryVerification`. A text action with `submit:true` sends Enter only
     after the exact draft is proved in the terminal buffer or on exactly one
-    scoped terminal WebSocket. `TERMINAL_DELIVERY_UNVERIFIED` means the draft may
-    be staged but Enter was withheld: never retype it or retry automatically.
+    scoped terminal WebSocket. `TERMINAL_DELIVERY_UNVERIFIED` means Enter was
+    withheld. Inspect the error detail: current builds try `Ctrl+U` and state
+    whether the staged line was cleared. If clearing was not proved, never
+    retype or retry automatically; inspect the bounded terminal crop first.
 11. Before navigating away from a dirty WordPress or other form, call
     `invictum_handle_beforeunload` with `navigateUrl` so the native handler is
     armed before Chrome opens “Leave site?”. Choose `stay` to preserve the page

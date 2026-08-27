@@ -2,8 +2,16 @@
   "name": "invictum-browser-bridge",
   "version": "0.1.0",
   "private": true,
-  "description": "A security-first local bridge between AI agents and the user's existing Chrome session.",
-  "license": "UNLICENSED",
+  "description": "Open-source, security-first Chrome control for AI agents and developer workflows.",
+  "license": "MIT",
+  "homepage": "https://github.com/invictumhr/ai-invictum-browser-bridge#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/invictumhr/ai-invictum-browser-bridge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/invictumhr/ai-invictum-browser-bridge/issues"
+  },
   "packageManager": "pnpm@11.9.0",
   "engines": {
     "node": ">=22.0.0"

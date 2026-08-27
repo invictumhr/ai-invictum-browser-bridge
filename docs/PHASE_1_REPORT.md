@@ -1,5 +1,9 @@
 # Phase 1 report
 
+> Historical record: this report describes an early milestone and is not the
+> current capability or installation contract. See [../README.md](../README.md),
+> [README.md](README.md), and runtime `system.capabilities`.
+
 ## Delivered
 
 - pnpm and Turborepo monorepo foundation

@@ -1,4 +1,4 @@
-# Chrome extension development installation
+# Chrome extension developer installation
 
 1. Build the repository:
 
@@ -11,7 +11,7 @@
 2. Open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select:
 
    ```text
-   D:\laragon\www\invictum\invictum-browser-bridge\apps\extension\dist
+   <repository>\apps\extension\dist
    ```
 
 3. Copy the extension ID shown by Chrome.
@@ -25,7 +25,19 @@
 6. Reload **Invictum Browser Controller** once on `chrome://extensions`.
 7. Open extension **Details** and verify **Site access / Pristup web-lokaciji** is **On all sites / Na svim web-lokacijama**.
 
-The extension requires `tabs`, `activeTab`, `scripting`, `webRequest`, `webRequestAuthProvider`, `debugger`, and HTTP/HTTPS host access. HTTP(S) host access deliberately removes the per-domain toolbar approval that made every newly opened site require manual user involvement. `webRequestAuthProvider` is used only for explicitly authorized, one-attempt HTTP Basic authentication. `debugger` is used only by bounded, short-lived, tab-scoped adapters for native JavaScript dialogs, inactive-tab screenshots, explicitly authorized `DOM.setFileInputFiles`, event-listener/source inspection and explicitly authorized R3 raw JavaScript; Chrome can show its normal debugging warning/banner during those actions. Chrome's user/admin setting remains authoritative and can restrict access. Browser-internal, extension, DevTools, Web Store, file, and other restricted pages remain unavailable.
+The extension requires `tabs`, `activeTab`, `scripting`, `webRequest`,
+`webRequestAuthProvider`, `debugger`, and HTTP/HTTPS host access. HTTP(S) host
+access deliberately removes the per-domain toolbar approval that made every
+newly opened site require manual user involvement. `webRequestAuthProvider` is
+used only for explicitly authorized, one-attempt HTTP Basic authentication.
+`debugger` is used only by bounded, tab-scoped adapters such as native dialogs,
+background screenshots, file upload, listener/source inspection, Figma
+selection, browser-hosted terminal input/readback, console/network diagnostics,
+mobile emulation, PDF export, and explicitly authorized R3 raw JavaScript.
+Chrome can show its normal debugging warning/banner during those actions.
+Chrome's user/admin setting remains authoritative and can restrict access.
+Browser-internal, extension, DevTools, Web Store, file, and other restricted
+pages remain unavailable.
 
 The toolbar badge shows `ON` after the Native Messaging round trip is connected. A left click opens the settings popup. **Work in the background** is the initial default and prevents omitted-`active` `open_tab`/`navigate` calls from switching the user's current tab; **Activate the agent tab** restores foreground behavior. Agents can explicitly override either default per call. The popup also shows Bridge/current-tab state and exposes **Reauthorize AI control of this tab** only after the user has pressed the in-page **Stop** button.
 
@@ -46,3 +58,6 @@ To remove the development registration:
 ```
 
 Registration is per-user under `HKCU`; administrator rights are not required.
+
+For a complete first-time setup, agent registration, update matrix, and removal
+workflow, see [INSTALL_WINDOWS.md](INSTALL_WINDOWS.md).
