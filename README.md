@@ -11,6 +11,16 @@ The project is licensed under the [MIT License](LICENSE). It is designed for
 local development and advanced browser workflows through MCP, a CLI, a
 TypeScript SDK, or the loopback control API.
 
+## Video demo
+
+[![Watch the Invictum Browser Bridge demo](https://img.youtube.com/vi/ziU3yIbnUUI/hqdefault.jpg)](https://www.youtube.com/watch?v=ziU3yIbnUUI)
+
+[Watch the full Invictum Browser Bridge demo on YouTube](https://www.youtube.com/watch?v=ziU3yIbnUUI)
+to see an AI agent work inside a real Chrome profile, understand a public
+website semantically, navigate its content, test a mobile viewport, and create
+full-page and annotated screenshots while keeping the controlled tab visible
+and explicitly reserved.
+
 ## Why use it?
 
 Most browser automation starts a clean browser profile or relies on fragile
