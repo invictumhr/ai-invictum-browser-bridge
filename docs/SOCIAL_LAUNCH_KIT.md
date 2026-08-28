@@ -7,7 +7,7 @@ to the community instead of publishing identical copy everywhere.
 ## Canonical links
 
 - Repository: https://github.com/invictumhr/ai-invictum-browser-bridge
-- Demo: https://www.youtube.com/watch?v=ziU3yIbnUUI
+- Demo: https://www.youtube.com/watch?v=QVO7exRn_24
 - Release: https://github.com/invictumhr/ai-invictum-browser-bridge/releases/tag/v0.1.0
 - Show HN copy: [SHOW_HN_LAUNCH.md](SHOW_HN_LAUNCH.md)
 
@@ -36,7 +36,7 @@ It is an MIT-licensed Windows developer preview, not a claim that arbitrary
 production browser automation is risk-free. The security model and current
 limitations are documented in the repository.
 
-Demo: https://www.youtube.com/watch?v=ziU3yIbnUUI
+Demo: https://www.youtube.com/watch?v=QVO7exRn_24
 GitHub: https://github.com/invictumhr/ai-invictum-browser-bridge
 
 Feedback on the authority architecture, MCP ergonomics, and useful typed
@@ -70,7 +70,7 @@ browser adapters.
 ```text
 It is MIT licensed and currently a Windows developer preview. The repo documents
 the trust boundaries and limitations instead of pretending browser automation
-is risk-free. Demo: https://www.youtube.com/watch?v=ziU3yIbnUUI
+is risk-free. Demo: https://www.youtube.com/watch?v=QVO7exRn_24
 
 Technical feedback is welcome.
 ```
@@ -165,7 +165,7 @@ The current release targets Windows 11, Chrome 120+, Node.js 22+, and pnpm 11.
 Installation is source-based and the Chrome extension is loaded unpacked.
 
 - [GitHub repository](https://github.com/invictumhr/ai-invictum-browser-bridge)
-- [Video demo](https://www.youtube.com/watch?v=ziU3yIbnUUI)
+- [Video demo](https://www.youtube.com/watch?v=QVO7exRn_24)
 - [Windows installation guide](https://github.com/invictumhr/ai-invictum-browser-bridge#install-with-an-ai-agent-on-windows)
 
 I would value feedback on the authority and policy architecture, MCP ergonomics,
@@ -201,7 +201,7 @@ interested in feedback on the trust boundaries and whether the typed-action
 approach is useful compared with generic browser automation.
 
 Repo: https://github.com/invictumhr/ai-invictum-browser-bridge
-Demo: https://www.youtube.com/watch?v=ziU3yIbnUUI
+Demo: https://www.youtube.com/watch?v=QVO7exRn_24
 ````
 
 ### r/webdev candidate
@@ -246,7 +246,7 @@ on visible per-tab control, User Stop, typed policy-checked actions, redacted
 audit data, and specialized WordPress, browser-terminal, and Figma workflows.
 
 Repo: https://github.com/invictumhr/ai-invictum-browser-bridge
-Demo: https://www.youtube.com/watch?v=ziU3yIbnUUI
+Demo: https://www.youtube.com/watch?v=QVO7exRn_24
 
 Feedback and focused contributions are welcome, especially around MCP ergonomics
 and new typed platform adapters.

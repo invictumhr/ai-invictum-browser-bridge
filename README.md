@@ -13,9 +13,9 @@ TypeScript SDK, or the loopback control API.
 
 ## Video demo
 
-[![Watch the Invictum Browser Bridge demo](https://img.youtube.com/vi/ziU3yIbnUUI/hqdefault.jpg)](https://www.youtube.com/watch?v=ziU3yIbnUUI)
+[![Watch the Invictum Browser Bridge demo](https://img.youtube.com/vi/QVO7exRn_24/hqdefault.jpg)](https://www.youtube.com/watch?v=QVO7exRn_24)
 
-[Watch the full Invictum Browser Bridge demo on YouTube](https://www.youtube.com/watch?v=ziU3yIbnUUI)
+[Watch the Invictum Browser Bridge demo on YouTube](https://www.youtube.com/watch?v=QVO7exRn_24)
 to see an AI agent work inside a real Chrome profile, understand a public
 website semantically, navigate its content, test a mobile viewport, and create
 full-page and annotated screenshots while keeping the controlled tab visible

@@ -53,7 +53,7 @@ The local control API is loopback-only, but local-process pairing/authentication
 is still future hardening, so the README and security guide describe the current
 boundaries clearly.
 
-Demo: https://www.youtube.com/watch?v=ziU3yIbnUUI
+Demo: https://www.youtube.com/watch?v=QVO7exRn_24
 Repo and installation instructions:
 https://github.com/invictumhr/ai-invictum-browser-bridge
 
