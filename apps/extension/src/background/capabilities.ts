@@ -331,6 +331,67 @@ const actions: readonly BrowserCapability[] = [
     targeted: true,
     description: "Explicitly authorized accept or dismissal of a native JavaScript dialog",
   },
+  {
+    action: "browser.list_frames",
+    riskLevel: "R0",
+    targeted: true,
+    description: "Read the sanitized main-frame and iframe topology",
+  },
+  {
+    action: "browser.get_navigation_state",
+    riskLevel: "R0",
+    targeted: true,
+    description: "Read ready state, sanitized history, visibility, and navigation timing",
+  },
+  {
+    action: "browser.get_performance_metrics",
+    riskLevel: "R0",
+    targeted: true,
+    description: "Read bounded CDP performance metrics and aggregate Web Vitals",
+  },
+  {
+    action: "browser.get_accessibility_tree",
+    riskLevel: "R0",
+    targeted: true,
+    description: "Read a bounded value-redacted accessibility tree with a stable fingerprint",
+  },
+  {
+    action: "browser.download",
+    riskLevel: "R2",
+    targeted: true,
+    description: "Start an explicitly authorized bounded non-executable Chrome download",
+  },
+  {
+    action: "browser.wait_for_download",
+    riskLevel: "R0",
+    targeted: true,
+    description: "Wait for a Bridge-managed download without revealing its local path",
+  },
+  {
+    action: "browser.list_webmcp_tools",
+    riskLevel: "R0",
+    targeted: true,
+    description: "Feature-detect and list tools exposed by the current page through WebMCP",
+  },
+  {
+    action: "browser.invoke_webmcp_tool",
+    riskLevel: "R3",
+    targeted: true,
+    description: "Explicitly invoke a discovered page WebMCP tool and mark its output untrusted",
+  },
+  {
+    action: "browser.cancel_webmcp_invocation",
+    riskLevel: "R1",
+    targeted: true,
+    description: "Cancel one known WebMCP invocation",
+  },
+  {
+    action: "browser.compare_screenshot",
+    riskLevel: "R0",
+    targeted: true,
+    description:
+      "Compare the current viewport with a bounded JPEG baseline and return a visual diff",
+  },
 ];
 
 export const getExtensionCapabilities = (): SystemCapabilitiesData =>
@@ -396,6 +457,16 @@ export const getExtensionCapabilities = (): SystemCapabilitiesData =>
       trustedTerminalInput: true,
       terminalBufferReadback: true,
       terminalTransportReadback: true,
+      durableOperationJournal: true,
+      authenticatedControlApi: true,
+      domainPolicies: true,
+      frameInspection: true,
+      navigationDiagnostics: true,
+      performanceMetrics: true,
+      accessibilityTree: true,
+      managedDownloads: true,
+      screenshotComparison: true,
+      experimentalWebMcp: true,
       userStop: true,
     },
   });

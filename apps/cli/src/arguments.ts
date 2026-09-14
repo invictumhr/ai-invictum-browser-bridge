@@ -61,6 +61,7 @@ export const buildEnhancementArguments = (values: readonly string[]): Record<str
     ...(verify === undefined ? {} : { verify }),
     ...(autoMarks === undefined ? {} : { autoMarks }),
     ...(values.includes("--timings") ? { timings: true } : {}),
+    ...(values.includes("--visual-trace") ? { visualTrace: true } : {}),
     ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
   };
 };
@@ -145,6 +146,7 @@ export const KNOWN_CLI_FLAGS: ReadonlySet<string> = new Set([
   "--timings",
   "--url",
   "--verify",
+  "--visual-trace",
   "--wait-prompt",
   "--wait-quiet",
   "--wait-text",

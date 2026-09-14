@@ -47,6 +47,10 @@ Read the specialized guide that applies to the task:
 - Clean page text, natural-language element discovery, history navigation,
   same-origin page API calls, and policy-preserving batches:
   [docs/AGENT_PRODUCTIVITY_ACTIONS.md](docs/AGENT_PRODUCTIVITY_ACTIONS.md).
+- Authenticated local control, durable audit/idempotency, per-domain boundaries,
+  frame/navigation/performance/accessibility diagnostics, managed downloads,
+  visual traces/diffs, experimental page WebMCP, and restart/sleep soak testing:
+  [docs/PRODUCTION_HARDENING_AND_DIAGNOSTICS.md](docs/PRODUCTION_HARDENING_AND_DIAGNOSTICS.md).
 
 [AGENT_USAGE.md](AGENT_USAGE.md) is authoritative for:
 
@@ -70,6 +74,8 @@ Read the specialized guide that applies to the task:
 - screenshots, annotations, and coordinate fallback;
 - the required `reserve -> work -> browser.unlock_tab` lifecycle;
 - policy, audit, and security boundaries;
+- authenticated loopback control, persistent operation/audit state, domain
+  boundaries, managed downloads, page WebMCP, and resilience verification;
 - unit, integration, and real-Chrome verification.
 
 Never connect directly to the extension, Native Messaging, or port `47821`

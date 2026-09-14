@@ -25,6 +25,7 @@ The easiest path is the CLI; it starts the authority if needed:
 ```powershell
 pnpm browser health
 pnpm browser ping
+pnpm browser health-details
 pnpm browser capabilities
 ```
 
@@ -39,7 +40,7 @@ It starts:
 - `http://127.0.0.1:47820` — persistent agent control API;
 - `ws://127.0.0.1:47821/native` — Native Host transport.
 
-Development overrides are `IBP_CONTROL_PORT`, `IBP_DESKTOP_WS_PORT`, `INVICTUM_CONTROL_URL`, and the existing Native Host `IBP_DESKTOP_WS_URL`. Never bind these unauthenticated development transports publicly.
+Development overrides are `IBP_CONTROL_PORT`, `IBP_DESKTOP_WS_PORT`, `INVICTUM_CONTROL_URL`, optional managed `INVICTUM_CONTROL_TOKEN`, and the existing Native Host `IBP_DESKTOP_WS_URL`. Control POSTs use a per-user bearer token, but both transports must still remain loopback-only.
 
 Chrome launches the registered Native Host; no second terminal is needed. See [EXTENSION_INSTALL.md](EXTENSION_INSTALL.md).
 
@@ -50,7 +51,9 @@ runtime capability contract, waits/timeouts/cancellation, permission/error
 mapping, semantic snapshots/search, typed interactions, WordPress editors and
 menus, Figma anchors and selection, xterm/WHM terminal focus and delivery,
 local-file CDP attachment, constrained and raw JavaScript, DOM/CSS/events,
-console/network/mobile/PDF adapters, screenshots, authentication/dialogs,
+console/network/mobile/PDF adapters, frame/navigation/performance/accessibility
+diagnostics, managed downloads, WebMCP feature detection, visual comparison,
+authenticated control, durable audit/idempotency, screenshots, authentication/dialogs,
 reservation cleanup, policy, redacted audit, Native Messaging framing, Agent
 SDK cleanup, and size limits.
 
@@ -93,10 +96,15 @@ The auth/dialog harness uses the persistent control API. It validates a real bro
 The kitchen-sink harness also uses the persistent control API. It creates its own tab and validates outline/minimal/interactive/semantic/full plus scoped snapshots; semantic find and truncation flags; text, search, email, number, date and textarea events; single/multiple local-file attachment plus missing-path denial and native events; select, checkbox and radio actions; contenteditable, ProseMirror-like and CKEditor-like editors; open Shadow DOM; safe N-1 relocation and fingerprint rejection; constrained JavaScript; typed DOM mutation/HTML sanitization including stylesheet and inline-network denial; inline/computed CSS inspection and CSS add/remove; delegated listener/source discovery for a JS-generated dropdown; scoped standard/custom event capture with monotonic sequence after clear; raw expression/function JavaScript and protected-source denial; bounded screenshots and coordinate clicks; non-form implicit buttons; submit denial/authorization; and guaranteed unlock.
 
 After rebuilding/reloading the extension, `scripts/verify-after-reload.ps1` is
-the one-step gate. The current gate checks ping, exactly 54 runtime actions, 61
-MCP tools, the required feature flags, the deterministic fixture, and the
+the one-step gate. The current gate checks ping, exactly 65 full-system actions
+(64 extension actions plus Desktop Authority health), 74 MCP tools, the
+required feature flags, the deterministic fixture, and the
 complete kitchen-sink smoke. Runtime `system.capabilities` and the script are
 the source of truth when a later release changes those counts.
+
+For long-running reliability, run the read-only `pnpm test:soak -- 100` before
+and after sleep/resume, Chrome restart/update, or an intentional Desktop
+Authority process restart.
 
 For normal agent operation do not use the legacy harness: keep the persistent authority running and exercise the browser through MCP/CLI/control API.
 

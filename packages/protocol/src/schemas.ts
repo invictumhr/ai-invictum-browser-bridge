@@ -210,6 +210,16 @@ export const SystemCapabilitiesDataSchema = z
         trustedTerminalInput: z.literal(true),
         terminalBufferReadback: z.literal(true),
         terminalTransportReadback: z.literal(true),
+        durableOperationJournal: z.literal(true),
+        authenticatedControlApi: z.literal(true),
+        domainPolicies: z.literal(true),
+        frameInspection: z.literal(true),
+        navigationDiagnostics: z.literal(true),
+        performanceMetrics: z.literal(true),
+        accessibilityTree: z.literal(true),
+        managedDownloads: z.literal(true),
+        screenshotComparison: z.literal(true),
+        experimentalWebMcp: z.boolean(),
         userStop: z.literal(true),
       })
       .strict(),
@@ -3208,3 +3218,299 @@ export type FigmaSelectParameters = z.infer<typeof FigmaSelectParametersSchema>;
 export type FigmaSelectData = z.infer<typeof FigmaSelectDataSchema>;
 export type FigmaHealthcheckParameters = z.infer<typeof FigmaHealthcheckParametersSchema>;
 export type FigmaHealthcheckData = z.infer<typeof FigmaHealthcheckDataSchema>;
+
+// --- Production diagnostics and advanced browser surfaces -----------------
+
+export const SystemHealthDetailsParametersSchema = z.object({}).strict();
+export const SystemHealthDetailsDataSchema = z
+  .object({
+    component: z.literal("desktop-authority"),
+    nativeConnected: z.boolean(),
+    authenticatedControlApi: z.boolean(),
+    controlledSessions: z.number().int().nonnegative(),
+    controlledTabs: z.number().int().nonnegative(),
+    inMemoryIdempotencyEntries: z.number().int().nonnegative(),
+    uncertainOperations: z.number().int().nonnegative(),
+    journalEnabled: z.boolean(),
+    auditPersistenceEnabled: z.boolean(),
+  })
+  .strict();
+
+export const ListFramesParametersSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    maxFrames: z.number().int().min(1).max(500).default(100),
+  })
+  .strict();
+export const BrowserFrameSchema = z
+  .object({
+    frameId: z.string().min(1).max(256),
+    parentFrameId: z.string().min(1).max(256).optional(),
+    loaderId: z.string().max(256).optional(),
+    name: z.string().max(512),
+    url: z.string().max(4_096),
+    origin: z.string().max(2_048),
+    mimeType: z.string().max(256),
+    securityOrigin: z.string().max(2_048),
+    unreachableUrl: z.string().max(4_096).optional(),
+    mainFrame: z.boolean(),
+  })
+  .strict();
+export const ListFramesDataSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    mainFrameId: z.string().min(1).max(256),
+    frames: z.array(BrowserFrameSchema).max(500),
+    truncated: z.boolean(),
+  })
+  .strict();
+
+export const GetNavigationStateParametersSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    maxHistoryEntries: z.number().int().min(1).max(100).default(20),
+  })
+  .strict();
+export const GetNavigationStateDataSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    mainFrameId: z.string().min(1).max(256),
+    url: z.string().max(4_096),
+    origin: z.string().max(2_048),
+    readyState: z.enum(["loading", "interactive", "complete", "unknown"]),
+    visibilityState: z.enum(["hidden", "visible", "prerender", "unknown"]),
+    currentHistoryIndex: z.number().int(),
+    history: z
+      .array(
+        z
+          .object({
+            entryId: z.number().int(),
+            url: z.string().max(4_096),
+            title: z.string().max(1_000),
+            transitionType: z.string().max(128),
+          })
+          .strict(),
+      )
+      .max(100),
+    historyTruncated: z.boolean(),
+    timing: z
+      .object({
+        navigationStart: z.number().nonnegative(),
+        domContentLoadedMs: z.number().nonnegative().optional(),
+        loadMs: z.number().nonnegative().optional(),
+        responseEndMs: z.number().nonnegative().optional(),
+      })
+      .strict(),
+  })
+  .strict();
+
+export const GetPerformanceMetricsParametersSchema = z
+  .object({ tabId: z.number().int().nonnegative() })
+  .strict();
+export const GetPerformanceMetricsDataSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    metrics: z.record(z.number().finite()),
+    webVitals: z
+      .object({
+        largestContentfulPaintMs: z.number().nonnegative().optional(),
+        cumulativeLayoutShift: z.number().nonnegative().optional(),
+        firstContentfulPaintMs: z.number().nonnegative().optional(),
+      })
+      .strict(),
+    navigation: z
+      .object({
+        type: z.string().max(64),
+        domContentLoadedMs: z.number().nonnegative().optional(),
+        loadMs: z.number().nonnegative().optional(),
+        responseEndMs: z.number().nonnegative().optional(),
+        transferSize: z.number().nonnegative().optional(),
+        decodedBodySize: z.number().nonnegative().optional(),
+      })
+      .strict(),
+    resourceSummary: z
+      .object({
+        count: z.number().int().nonnegative(),
+        transferSize: z.number().nonnegative(),
+        decodedBodySize: z.number().nonnegative(),
+      })
+      .strict(),
+  })
+  .strict();
+
+export const GetAccessibilityTreeParametersSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    frameId: z.string().min(1).max(256).optional(),
+    depth: z.number().int().min(1).max(32).default(12),
+    maxNodes: z.number().int().min(1).max(2_000).default(500),
+    interestingOnly: z.boolean().default(true),
+  })
+  .strict();
+export const AccessibilityNodeSchema = z
+  .object({
+    nodeId: z.string().min(1).max(256),
+    parentId: z.string().min(1).max(256).optional(),
+    backendNodeId: z.number().int().nonnegative().optional(),
+    role: z.string().max(256),
+    name: z.string().max(2_000),
+    description: z.string().max(2_000).optional(),
+    ignored: z.boolean(),
+    properties: z.record(JsonValueSchema),
+  })
+  .strict();
+export const GetAccessibilityTreeDataSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    frameId: z.string().min(1).max(256).optional(),
+    nodes: z.array(AccessibilityNodeSchema).max(2_000),
+    truncated: z.boolean(),
+    fingerprint: z.string().length(64),
+  })
+  .strict();
+
+export const StartDownloadParametersSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    url: HttpUrlSchema,
+    filename: z.string().min(1).max(512).optional(),
+    maxBytes: z.number().int().positive().max(1_000_000_000).default(100_000_000),
+    authorization: ExplicitUserAuthorizationSchema,
+  })
+  .strict();
+export const WaitForDownloadParametersSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    downloadId: z.number().int().nonnegative(),
+    timeoutMs: z.number().int().min(100).max(120_000).default(30_000),
+  })
+  .strict();
+export const ManagedDownloadDataSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    downloadId: z.number().int().nonnegative(),
+    state: z.enum(["in_progress", "complete", "interrupted"]),
+    danger: z.string().max(128),
+    bytesReceived: z.number().nonnegative(),
+    totalBytes: z.number(),
+    fileName: z.string().max(512),
+    url: z.string().max(4_096),
+    error: z.string().max(256).optional(),
+    exceededLimit: z.boolean(),
+    managed: z.literal(true),
+  })
+  .strict();
+
+export const ListWebMcpToolsParametersSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    discoveryWaitMs: z.number().int().min(0).max(2_000).default(150),
+  })
+  .strict();
+export const WebMcpToolSchema = z
+  .object({
+    name: z.string().min(1).max(256),
+    description: z.string().max(4_000),
+    frameId: z.string().min(1).max(256),
+    inputSchema: JsonValueSchema.optional(),
+    annotations: z
+      .object({
+        readOnly: z.boolean().optional(),
+        untrustedContent: z.boolean().optional(),
+        consequential: z.boolean().optional(),
+        autosubmit: z.boolean().optional(),
+        readOnlyHint: z.boolean().optional(),
+        destructiveHint: z.boolean().optional(),
+        idempotentHint: z.boolean().optional(),
+        openWorldHint: z.boolean().optional(),
+      })
+      .strict(),
+  })
+  .strict();
+export const ListWebMcpToolsDataSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    supported: z.boolean(),
+    tools: z.array(WebMcpToolSchema).max(500),
+    untrusted: z.literal(true),
+  })
+  .strict();
+export const InvokeWebMcpToolParametersSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    frameId: z.string().min(1).max(256),
+    toolName: z.string().min(1).max(256),
+    input: z.record(z.string(), JsonValueSchema).default({}),
+    timeoutMs: z.number().int().min(100).max(120_000).default(30_000),
+    authorization: ExplicitUserAuthorizationSchema,
+  })
+  .strict();
+export const InvokeWebMcpToolDataSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    invocationId: z.string().min(1).max(256),
+    status: z.enum(["Completed", "Canceled", "Error"]),
+    output: JsonValueSchema.optional(),
+    errorText: z.string().max(4_000).optional(),
+    untrusted: z.literal(true),
+  })
+  .strict();
+export const CancelWebMcpInvocationParametersSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    invocationId: z.string().min(1).max(256),
+  })
+  .strict();
+export const CancelWebMcpInvocationDataSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    invocationId: z.string().min(1).max(256),
+    cancelled: z.literal(true),
+  })
+  .strict();
+
+export const CompareScreenshotParametersSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    baselineDataUrl: z.string().min(32).max(700_000).startsWith("data:image/jpeg;base64,"),
+    quality: z.number().int().min(20).max(100).default(80),
+    threshold: z.number().min(0).max(1).default(0.1),
+  })
+  .strict();
+export const CompareScreenshotDataSchema = z
+  .object({
+    tabId: z.number().int().nonnegative(),
+    changed: z.boolean(),
+    changedPixels: z.number().int().nonnegative(),
+    totalPixels: z.number().int().positive(),
+    changedPercent: z.number().min(0).max(100),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+    mediaType: z.literal("image/jpeg"),
+    byteLength: z.number().int().positive().max(700_000),
+    dataUrl: z.string().min(32).max(950_000).startsWith("data:image/jpeg;base64,"),
+  })
+  .strict();
+
+export type SystemHealthDetailsData = z.infer<typeof SystemHealthDetailsDataSchema>;
+export type ListFramesParameters = z.infer<typeof ListFramesParametersSchema>;
+export type ListFramesData = z.infer<typeof ListFramesDataSchema>;
+export type GetNavigationStateParameters = z.infer<typeof GetNavigationStateParametersSchema>;
+export type GetNavigationStateData = z.infer<typeof GetNavigationStateDataSchema>;
+export type GetPerformanceMetricsParameters = z.infer<typeof GetPerformanceMetricsParametersSchema>;
+export type GetPerformanceMetricsData = z.infer<typeof GetPerformanceMetricsDataSchema>;
+export type GetAccessibilityTreeParameters = z.infer<typeof GetAccessibilityTreeParametersSchema>;
+export type GetAccessibilityTreeData = z.infer<typeof GetAccessibilityTreeDataSchema>;
+export type StartDownloadParameters = z.infer<typeof StartDownloadParametersSchema>;
+export type WaitForDownloadParameters = z.infer<typeof WaitForDownloadParametersSchema>;
+export type ManagedDownloadData = z.infer<typeof ManagedDownloadDataSchema>;
+export type ListWebMcpToolsParameters = z.infer<typeof ListWebMcpToolsParametersSchema>;
+export type ListWebMcpToolsData = z.infer<typeof ListWebMcpToolsDataSchema>;
+export type InvokeWebMcpToolParameters = z.infer<typeof InvokeWebMcpToolParametersSchema>;
+export type InvokeWebMcpToolData = z.infer<typeof InvokeWebMcpToolDataSchema>;
+export type CancelWebMcpInvocationParameters = z.infer<
+  typeof CancelWebMcpInvocationParametersSchema
+>;
+export type CancelWebMcpInvocationData = z.infer<typeof CancelWebMcpInvocationDataSchema>;
+export type CompareScreenshotParameters = z.infer<typeof CompareScreenshotParametersSchema>;
+export type CompareScreenshotData = z.infer<typeof CompareScreenshotDataSchema>;

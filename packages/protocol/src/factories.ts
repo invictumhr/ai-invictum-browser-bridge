@@ -118,6 +118,7 @@ import type {
 
 export const SYSTEM_PING_ACTION = "system.ping";
 export const SYSTEM_CAPABILITIES_ACTION = "system.capabilities";
+export const SYSTEM_HEALTH_DETAILS_ACTION = "system.health_details";
 export const SYSTEM_HEARTBEAT_EVENT = "system.heartbeat";
 export const BROWSER_LIST_TABS_ACTION = "browser.list_tabs";
 export const BROWSER_OPEN_TAB_ACTION = "browser.open_tab";
@@ -171,6 +172,16 @@ export const BROWSER_READ_TERMINAL_ACTION = "browser.read_terminal";
 export const BROWSER_TERMINAL_INPUT_ACTION = "browser.terminal_input";
 export const BROWSER_PRINT_TO_PDF_ACTION = "browser.print_to_pdf";
 export const BROWSER_PAGE_API_REQUEST_ACTION = "browser.page_api_request";
+export const BROWSER_LIST_FRAMES_ACTION = "browser.list_frames";
+export const BROWSER_GET_NAVIGATION_STATE_ACTION = "browser.get_navigation_state";
+export const BROWSER_GET_PERFORMANCE_METRICS_ACTION = "browser.get_performance_metrics";
+export const BROWSER_GET_ACCESSIBILITY_TREE_ACTION = "browser.get_accessibility_tree";
+export const BROWSER_DOWNLOAD_ACTION = "browser.download";
+export const BROWSER_WAIT_FOR_DOWNLOAD_ACTION = "browser.wait_for_download";
+export const BROWSER_LIST_WEBMCP_TOOLS_ACTION = "browser.list_webmcp_tools";
+export const BROWSER_INVOKE_WEBMCP_TOOL_ACTION = "browser.invoke_webmcp_tool";
+export const BROWSER_CANCEL_WEBMCP_INVOCATION_ACTION = "browser.cancel_webmcp_invocation";
+export const BROWSER_COMPARE_SCREENSHOT_ACTION = "browser.compare_screenshot";
 
 export interface MessageFactoryOptions {
   messageId?: string;
@@ -780,6 +791,25 @@ function createBrowserInteractionRequest<T>(
       },
     },
   };
+}
+
+/** Generic factory for capability-gated actions with strict schemas. */
+export function createRegisteredActionRequest<T>(
+  sessionId: string,
+  action: string,
+  parameters: T,
+  expectedEffect: string,
+  options?: MessageFactoryOptions & { timeoutMs?: number },
+): ProtocolRequestEnvelope<T> {
+  return createBrowserInteractionRequest(sessionId, action, parameters, expectedEffect, options);
+}
+
+export function createRegisteredActionResponse<T>(
+  request: ProtocolRequestEnvelope,
+  data: T,
+  options?: MessageFactoryOptions & { startedAt?: Date },
+): ProtocolResponseEnvelope<T> {
+  return createTimedSuccessResponse(request, data, options);
 }
 
 export function createSelectOptionRequest(

@@ -61,7 +61,7 @@ Errors intentionally omit the path:
 - debugger detach and content-marker cleanup paths;
 - Desktop validation of a real local fixture file;
 - emulated end-to-end transport and audit proof that `upload-one.txt` and its path are absent;
-- MCP : 61 tools and `invictum_set_file_input_files` present in the current advanced build;
+- MCP: 74 tools and `invictum_set_file_input_files` present in the current advanced build;
 - deterministic fixture inputs for single and multiple `.txt` uploads;
 - real-Chrome kitchen-sink proof for missing-path denial, 1-file attach, 2-file attach, native events, verified counts and unconditional unlock.
 
@@ -74,7 +74,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\verify-after-reload.ps1
 ```
 
 The script starts/repairs the normal authority through the CLI, verifies the
-current 54 runtime actions and 61 MCP tools plus the required feature flags,
+current 65 full-system actions (64 extension actions plus Desktop Authority
+health) and 74 MCP tools plus the required feature flags,
 ensures the current fixture is available, then runs the complete real-Chrome
 kitchen-sink smoke. The smoke requires its disposable agent-created tab to
 close in `finally`; cleanup failure fails the smoke instead of being hidden. A

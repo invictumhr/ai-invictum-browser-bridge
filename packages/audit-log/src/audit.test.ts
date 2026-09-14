@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { InMemoryAuditLog, sanitizeAuditValue } from "./index.js";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { InMemoryAuditLog, JsonlAuditLog, sanitizeAuditValue } from "./index.js";
 
 describe("audit sanitization", () => {
   it("redacts sensitive values recursively", () => {
@@ -38,5 +42,26 @@ describe("audit sanitization", () => {
     expect(entry.sanitizedParameters).toEqual({ accessToken: "[REDACTED]" });
     expect(entry).not.toHaveProperty("parameters");
     expect(audit.list()).toHaveLength(1);
+  });
+
+  it("persists only sanitized JSONL entries", () => {
+    const path = join(mkdtempSync(join(tmpdir(), "ibb-audit-")), "audit.jsonl");
+    const audit = new JsonlAuditLog(path);
+    audit.record({
+      sessionId: "session-1",
+      agentId: "agent-1",
+      clientId: "client-1",
+      domain: "example.test",
+      url: "https://example.test/",
+      tool: "browser.submit_form",
+      parameters: { password: "never-write-this", value: "safe" },
+      policyDecision: "allow",
+      riskLevel: "R2",
+      result: "success",
+      durationMs: 4,
+    });
+    const stored = readFileSync(path, "utf8");
+    expect(stored).toContain('"password":"[REDACTED]"');
+    expect(stored).not.toContain("never-write-this");
   });
 });

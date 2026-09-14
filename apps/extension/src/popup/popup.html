@@ -55,6 +55,26 @@
         </button>
       </section>
 
+      <section aria-labelledby="domain-policy-title">
+        <h2 id="domain-policy-title">Domain boundary</h2>
+        <p class="section-description">
+          Restrict what agents may do on this hostname. Bridge authorization still applies.
+        </p>
+        <label class="select-label" for="domain-policy"
+          ><span id="domain-hostname">Current site</span></label
+        >
+        <select id="domain-policy">
+          <option value="allow_all">Allow with Bridge policy</option>
+          <option value="observe_only">Observe only</option>
+          <option value="safe_interaction">Safe interaction (R0/R1)</option>
+          <option value="trusted_admin">Trusted admin (no terminal input)</option>
+          <option value="block">Block agent access</option>
+        </select>
+        <button id="save-domain-policy" class="compact-button domain-save" type="button">
+          Save domain policy
+        </button>
+      </section>
+
       <section aria-labelledby="agent-tools-title">
         <h2 id="agent-tools-title">Current tab diagnostics</h2>
         <p class="section-description">

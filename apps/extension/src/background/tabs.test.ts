@@ -64,6 +64,30 @@ describe("ChromeTabsAdapter", () => {
             title: "Local file",
             url: "file:///C:/Users/info/private.txt",
           },
+          {
+            id: 11,
+            windowId: 3,
+            index: 0,
+            active: true,
+            highlighted: true,
+            pinned: false,
+            incognito: true,
+            status: "complete",
+            title: "Private tab",
+            url: "https://private.example.test/secret",
+          },
+          {
+            id: 12,
+            windowId: 4,
+            index: 0,
+            active: true,
+            highlighted: true,
+            pinned: false,
+            incognito: false,
+            status: "complete",
+            title: "Invictum Browser Bridge",
+            url: "chrome-extension://extension-id/popup.html#agent-window-sentinel",
+          },
         ]),
       },
     });
@@ -85,5 +109,8 @@ describe("ChromeTabsAdapter", () => {
       url: "file:///[LOCAL_FILE]",
       restricted: true,
     });
+    expect(result.count).toBe(2);
+    expect(JSON.stringify(result)).not.toContain("Private tab");
+    expect(JSON.stringify(result)).not.toContain("agent-window-sentinel");
   });
 });

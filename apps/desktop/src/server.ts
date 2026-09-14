@@ -58,6 +58,7 @@ import {
   BROWSER_TERMINAL_INPUT_ACTION,
   BROWSER_PRINT_TO_PDF_ACTION,
   BROWSER_PAGE_API_REQUEST_ACTION,
+  SYSTEM_HEALTH_DETAILS_ACTION,
   ClickElementDataSchema,
   ClickElementParametersSchema,
   createClickRequest,
@@ -98,6 +99,7 @@ import {
   createTerminalInputRequest,
   createPrintToPdfRequest,
   createPageApiRequest,
+  createRegisteredActionRequest,
   createPingRequest,
   createCapabilitiesRequest,
   createOpenTabRequest,
@@ -560,7 +562,28 @@ export class DesktopBridgeServer {
         response.payload.error?.retryable ?? false,
       );
     }
-    return SystemCapabilitiesDataSchema.parse(response.payload.data);
+    const capabilities = SystemCapabilitiesDataSchema.parse(response.payload.data);
+    if (capabilities.actions.some((entry) => entry.action === SYSTEM_HEALTH_DETAILS_ACTION)) {
+      return capabilities;
+    }
+    return SystemCapabilitiesDataSchema.parse({
+      ...capabilities,
+      actions: [
+        ...capabilities.actions,
+        {
+          action: SYSTEM_HEALTH_DETAILS_ACTION,
+          riskLevel: "diagnostic",
+          targeted: false,
+          description:
+            "Desktop authority, control authentication, session, audit, and crash-journal health",
+          readOnly: true,
+          destructive: false,
+          idempotent: true,
+          requiresAuthorization: false,
+          parameterKeys: [],
+        },
+      ],
+    });
   }
 
   public async listTabs(context: BrowserOperationContext): Promise<ListTabsData> {
@@ -2291,6 +2314,47 @@ export class DesktopBridgeServer {
       );
       throw error;
     }
+  }
+
+  /**
+   * Executes a capability-gated action whose strict parameter/result schemas
+   * live in @invictum/protocol. Audit records keep only keys and a digest so
+   * screenshots, page-tool inputs, and download URLs never enter the log.
+   */
+  public async registeredAction<T>(
+    context: BrowserOperationContext,
+    action: string,
+    parameters: Record<string, unknown>,
+    parseData: (value: unknown) => T,
+  ): Promise<T> {
+    const authorization =
+      typeof parameters["authorization"] === "object" && parameters["authorization"] !== null
+        ? (parameters["authorization"] as Record<string, unknown>)
+        : undefined;
+    const timeoutMs =
+      typeof parameters["timeoutMs"] === "number"
+        ? Math.min(125_000, Math.max(5_000, parameters["timeoutMs"] + 5_000))
+        : 30_000;
+    return this.#runAdvancedAction(
+      context,
+      action,
+      createRegisteredActionRequest(
+        context.sessionId,
+        action,
+        parameters,
+        `Execute capability-gated action ${action}`,
+        { timeoutMs },
+      ),
+      parseData,
+      {
+        ...(typeof parameters["tabId"] === "number" ? { tabId: parameters["tabId"] } : {}),
+        parameterKeys: Object.keys(parameters).sort(),
+        parametersSha256: createHash("sha256").update(JSON.stringify(parameters)).digest("hex"),
+      },
+      typeof authorization?.["instructionId"] === "string"
+        ? authorization["instructionId"]
+        : undefined,
+    );
   }
 
   public async clickAt(

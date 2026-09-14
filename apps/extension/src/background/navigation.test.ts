@@ -33,7 +33,10 @@ afterEach(() => vi.unstubAllGlobals());
 describe("ChromeNavigationAdapter", () => {
   it("opens and returns a sanitized complete HTTP(S) tab", async () => {
     const create = vi.fn().mockResolvedValue({ id: 7 });
-    const get = vi.fn().mockResolvedValue(chromeTab("https://example.test/path?token=secret#x"));
+    const get = vi.fn().mockResolvedValue({
+      ...chromeTab("https://example.test/path?token=secret#x"),
+      active: false,
+    });
     vi.stubGlobal("chrome", {
       storage: {
         local: { get: vi.fn().mockResolvedValue({}) },
@@ -46,7 +49,9 @@ describe("ChromeNavigationAdapter", () => {
       windows: {
         get: vi.fn().mockRejectedValue(new Error("No such window")),
         create: vi.fn().mockResolvedValue({ id: 3, tabs: [{ id: 7 }] }),
+        remove: vi.fn().mockResolvedValue(undefined),
       },
+      runtime: { getURL: vi.fn((path: string) => `chrome-extension://extension-id/${path}`) },
       tabs: { create, get },
     });
     const result = await new ChromeNavigationAdapter().openTab(
@@ -54,8 +59,12 @@ describe("ChromeNavigationAdapter", () => {
     );
     expect(result).toMatchObject({ created: true, tab: { tabId: 7 } });
     expect(result.tab.url).not.toContain("secret");
-    // The agent works in its own window, so no tab is added to the user's.
-    expect(create).not.toHaveBeenCalled();
+    // The agent works in its own unfocused window and preserves background mode.
+    expect(create).toHaveBeenCalledWith({
+      url: "https://example.test/path",
+      active: false,
+      windowId: 3,
+    });
   });
 
   it("navigates and reports whether the origin changed", async () => {

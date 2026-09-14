@@ -18,15 +18,17 @@ const stubChrome = (options: {
       options.windowExists === true ? { id } : Promise.reject(new Error("No such window")),
     );
   const windowsCreate = vi.fn().mockResolvedValue(options.createWindow);
+  const windowsRemove = vi.fn().mockResolvedValue(undefined);
   const tabsCreate = vi
     .fn()
     .mockImplementation(async (info: Record<string, unknown>) => ({ id: 99, ...info }));
   vi.stubGlobal("chrome", {
     storage: { session: { get, set, remove } },
-    windows: { get: windowsGet, create: windowsCreate },
+    runtime: { getURL: vi.fn((path: string) => `chrome-extension://extension-id/${path}`) },
+    windows: { get: windowsGet, create: windowsCreate, remove: windowsRemove },
     tabs: { create: tabsCreate },
   });
-  return { set, remove, windowsCreate, tabsCreate };
+  return { set, remove, windowsCreate, windowsRemove, tabsCreate };
 };
 
 describe("AgentWindow", () => {
@@ -39,11 +41,16 @@ describe("AgentWindow", () => {
 
     // The window must not be focused, otherwise it jumps over the user's work.
     expect(mocks.windowsCreate).toHaveBeenCalledWith({
-      url: "https://example.com",
+      url: "chrome-extension://extension-id/popup.html#agent-window-sentinel",
       focused: false,
     });
+    expect(mocks.tabsCreate).toHaveBeenCalledWith({
+      url: "https://example.com",
+      active: false,
+      windowId: 7,
+    });
     expect(mocks.set).toHaveBeenCalledWith({ "invictum.agent.window": 7 });
-    expect(tab.id).toBe(42);
+    expect(tab.id).toBe(99);
   });
 
   it("reuses the remembered window instead of the user's focused one", async () => {

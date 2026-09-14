@@ -1,6 +1,7 @@
 import "./popup.css";
 
 import type { TabActivationMode } from "../tab-activation-settings.js";
+import type { DomainPolicyMode } from "../domain-policy-settings.js";
 
 const CONTROL_CHANNEL = "invictum.browser.control.v1";
 
@@ -8,6 +9,7 @@ interface PopupState {
   tabId: number;
   activationMode: TabActivationMode;
   globalPageAccess: boolean;
+  domainPolicy: { hostname: string; mode: DomainPolicyMode };
   control: {
     state: "active" | "idle" | "disconnected" | "stopped";
     reservation: "unreserved" | "controlled" | "blocked";
@@ -30,6 +32,7 @@ interface PopupResponse {
   ok: boolean;
   state?: PopupState;
   mode?: TabActivationMode;
+  domainPolicy?: { hostname: string; mode: DomainPolicyMode };
 }
 
 const requiredElement = <T extends Element>(selector: string): T => {
@@ -51,6 +54,9 @@ const consoleStatus = requiredElement<HTMLElement>("#console-status");
 const mobileStatus = requiredElement<HTMLElement>("#mobile-status");
 const toggleConsoleButton = requiredElement<HTMLButtonElement>("#toggle-console");
 const toggleMobileButton = requiredElement<HTMLButtonElement>("#toggle-mobile");
+const domainHostname = requiredElement<HTMLElement>("#domain-hostname");
+const domainPolicySelect = requiredElement<HTMLSelectElement>("#domain-policy");
+const saveDomainPolicyButton = requiredElement<HTMLButtonElement>("#save-domain-policy");
 
 let activeTabId: number | undefined;
 let saveStatusTimer: number | undefined;
@@ -70,6 +76,8 @@ const showSaveStatus = (message: string, error = false): void => {
 
 const render = (state: PopupState): void => {
   activeTabId = state.tabId;
+  domainHostname.textContent = state.domainPolicy.hostname || "Current site";
+  domainPolicySelect.value = state.domainPolicy.mode;
   for (const input of modeInputs) input.checked = input.value === state.activationMode;
 
   const connected = state.control.connectionState === "connected";
@@ -168,6 +176,25 @@ toggleConsoleButton.addEventListener("click", () =>
 toggleMobileButton.addEventListener("click", () =>
   toggleTool(toggleMobileButton, "popup_toggle_mobile"),
 );
+
+saveDomainPolicyButton.addEventListener("click", () => {
+  const hostname = domainHostname.textContent ?? "";
+  saveDomainPolicyButton.disabled = true;
+  void sendPopupMessage({
+    command: "popup_set_domain_policy",
+    hostname,
+    mode: domainPolicySelect.value as DomainPolicyMode,
+  })
+    .then((response) => {
+      if (!response.ok) throw new Error("Could not save domain policy");
+      showSaveStatus("Domain policy saved.");
+      return refresh();
+    })
+    .catch(() => showSaveStatus("Domain policy was not saved.", true))
+    .finally(() => {
+      saveDomainPolicyButton.disabled = false;
+    });
+});
 
 void refresh().catch(() => {
   connectionStatus.textContent = "Settings are currently unavailable";

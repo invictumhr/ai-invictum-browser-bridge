@@ -1,15 +1,18 @@
 import { randomUUID } from "node:crypto";
-import type {
-  GetTerminalsData,
-  ReadTerminalInput,
-  TerminalInputInput,
-  TerminalInputData,
-  TerminalReadData,
+import {
+  getActionMetadata,
+  type GetTerminalsData,
+  type ReadTerminalInput,
+  type TerminalInputInput,
+  type TerminalInputData,
+  type TerminalReadData,
 } from "@invictum/protocol";
 
 import { EnhancedActionRunner, type EnhancedActionHooks } from "./enhanced-actions.js";
+import { readControlToken } from "./control-auth.js";
 
 export * from "./enhanced-actions.js";
+export * from "./control-auth.js";
 
 export interface InvictumAgentContext {
   sessionId: string;
@@ -22,6 +25,7 @@ export interface InvictumControlClientOptions {
   baseUrl?: string;
   context?: Partial<InvictumAgentContext>;
   fetchImplementation?: typeof fetch;
+  controlToken?: string;
 }
 
 export interface ScreenshotAnnotationInput {
@@ -83,6 +87,7 @@ export interface InvictumBatchStep {
   verify?: Record<string, unknown>;
   autoMarks?: Record<string, unknown>;
   timings?: boolean;
+  visualTrace?: boolean;
 }
 
 export interface InvictumBatchStepResult {
@@ -180,10 +185,12 @@ export class InvictumControlClient {
   readonly #fetch: typeof fetch;
   readonly #context: InvictumAgentContext;
   readonly #enhancedActions: EnhancedActionRunner;
+  readonly #controlToken: string | undefined;
 
   public constructor(options: InvictumControlClientOptions = {}) {
     this.#baseUrl = (options.baseUrl ?? "http://127.0.0.1:47820").replace(/\/$/, "");
     this.#fetch = options.fetchImplementation ?? fetch;
+    this.#controlToken = options.controlToken ?? readControlToken();
     this.#context = {
       sessionId: options.context?.sessionId ?? randomUUID(),
       agentId: options.context?.agentId ?? "local-agent",
@@ -207,9 +214,13 @@ export class InvictumControlClient {
     parameters: unknown = {},
     options: { idempotencyKey?: string } = {},
   ): Promise<T> {
+    const controlToken = this.#controlToken ?? readControlToken();
     const response = await this.#fetch(`${this.#baseUrl}/v1/call`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        ...(controlToken === undefined ? {} : { authorization: `Bearer ${controlToken}` }),
+      },
       body: JSON.stringify({
         action,
         parameters,
@@ -221,9 +232,13 @@ export class InvictumControlClient {
   }
 
   public async closeSession(): Promise<{ sessionId: string; released: number[] }> {
+    const controlToken = this.#controlToken ?? readControlToken();
     const response = await this.#fetch(`${this.#baseUrl}/v1/session/close`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        ...(controlToken === undefined ? {} : { authorization: `Bearer ${controlToken}` }),
+      },
       body: JSON.stringify({ context: this.#context }),
     });
     const result = await this.#parse<{ sessionId: string; released: number[] }>(response);
@@ -248,6 +263,42 @@ export class InvictumControlClient {
         ((code, message, retryable, details) =>
           new InvictumControlError(code, message, retryable, details)),
     }) as Promise<T>;
+  }
+
+  /** One logical browser mutation with a durable idempotency boundary. */
+  public async transaction<T = unknown>(
+    action: string,
+    parameters: Record<string, unknown> = {},
+    options: {
+      idempotencyKey?: string;
+      dryRun?: boolean;
+      postSnapshot?: "outline" | "interactive";
+      domDelta?: boolean;
+      verify?: Record<string, unknown>;
+      timings?: boolean;
+      visualTrace?: boolean;
+    } = {},
+    hooks: EnhancedActionHooks = {},
+  ): Promise<T> {
+    const metadata = getActionMetadata(action);
+    if (metadata === undefined) throw new Error(`Unknown browser action: ${action}`);
+    if (!metadata.idempotent && options.idempotencyKey === undefined) {
+      throw new Error(`transaction requires idempotencyKey for non-idempotent action ${action}`);
+    }
+    return this.enhancedCall<T>(
+      action,
+      {
+        ...parameters,
+        ...(options.idempotencyKey === undefined ? {} : { idempotencyKey: options.idempotencyKey }),
+        ...(options.dryRun === undefined ? {} : { dryRun: options.dryRun }),
+        ...(options.postSnapshot === undefined ? {} : { postSnapshot: options.postSnapshot }),
+        ...(options.domDelta === undefined ? {} : { domDelta: options.domDelta }),
+        ...(options.verify === undefined ? {} : { verify: options.verify }),
+        timings: options.timings ?? true,
+        visualTrace: options.visualTrace ?? false,
+      },
+      hooks,
+    );
   }
 
   public clearEnhancedActionState(tabId?: number): void {
@@ -363,6 +414,7 @@ export class InvictumControlClient {
           ...(step.verify === undefined ? {} : { verify: step.verify }),
           ...(step.autoMarks === undefined ? {} : { autoMarks: step.autoMarks }),
           ...(step.timings === true ? { timings: true } : {}),
+          ...(step.visualTrace === true ? { visualTrace: true } : {}),
         });
         completed.set(step.id, data);
         last = data;

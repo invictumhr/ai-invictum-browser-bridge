@@ -7,8 +7,8 @@ is provided through the GitHub repository.
 
 1. Read the [Quick start](README.md#quick-start) and
    [Troubleshooting](TROUBLESHOOTING.md) guides.
-2. Run `pnpm browser health`, `pnpm browser ping`, and
-   `pnpm browser capabilities`.
+2. Run `pnpm browser health`, `pnpm browser ping`,
+   `pnpm browser health-details`, and `pnpm browser capabilities`.
 3. Confirm Chrome is running, the unpacked extension is enabled, and Native
    Messaging is installed.
 4. Reproduce the problem on a non-sensitive page or repository fixture when

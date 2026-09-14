@@ -64,6 +64,7 @@ interface ParsedEnhancements {
   verify?: Record<string, unknown>;
   autoMarks?: Record<string, unknown>;
   timings: boolean;
+  visualTrace: boolean;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -95,6 +96,7 @@ const parseEnhancements = (
   const verify = isRecord(parameters["verify"]) ? parameters["verify"] : undefined;
   const autoMarks = isRecord(parameters["autoMarks"]) ? parameters["autoMarks"] : undefined;
   const timings = parameters["timings"] === true;
+  const visualTrace = parameters["visualTrace"] === true;
   delete parameters["idempotencyKey"];
   delete parameters["dryRun"];
   delete parameters["postSnapshot"];
@@ -102,6 +104,7 @@ const parseEnhancements = (
   delete parameters["verify"];
   delete parameters["autoMarks"];
   delete parameters["timings"];
+  delete parameters["visualTrace"];
   return {
     parameters,
     ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
@@ -111,6 +114,19 @@ const parseEnhancements = (
     ...(verify === undefined ? {} : { verify }),
     ...(autoMarks === undefined ? {} : { autoMarks }),
     timings,
+    visualTrace,
+  };
+};
+
+const screenshotFingerprint = (value: unknown): Record<string, unknown> | undefined => {
+  if (!isRecord(value) || typeof value["dataUrl"] !== "string") return undefined;
+  const dataUrl = value["dataUrl"];
+  return {
+    sha256: createHash("sha256").update(dataUrl).digest("hex"),
+    ...(typeof value["width"] === "number" ? { width: value["width"] } : {}),
+    ...(typeof value["height"] === "number" ? { height: value["height"] } : {}),
+    ...(typeof value["byteLength"] === "number" ? { byteLength: value["byteLength"] } : {}),
+    capturedAt: new Date().toISOString(),
   };
 };
 
@@ -376,6 +392,18 @@ export class EnhancedActionRunner {
 
     const requestedTabId =
       typeof actionParameters["tabId"] === "number" ? actionParameters["tabId"] : undefined;
+    let beforeVisual: Record<string, unknown> | undefined;
+    if (parsed.visualTrace && requestedTabId !== undefined) {
+      beforeVisual = screenshotFingerprint(
+        await this.#transport.call("browser.screenshot", {
+          tabId: requestedTabId,
+          mode: "viewport",
+          quality: 60,
+          maxWidth: 1280,
+          maxHeight: 720,
+        }),
+      );
+    }
     let previousSnapshot =
       requestedTabId === undefined ? undefined : this.#snapshotStates.get(requestedTabId);
     let baselineMs: number | undefined;
@@ -406,6 +434,49 @@ export class EnhancedActionRunner {
     );
     const actionMs = elapsed(actionStartedAt);
     const tabId = actionTabId(actionParameters, data);
+    let visualTrace: Record<string, unknown> | undefined;
+    if (parsed.visualTrace && tabId !== undefined) {
+      if (action === "browser.close_tab") {
+        visualTrace = {
+          available: false,
+          ...(beforeVisual === undefined ? {} : { before: beforeVisual }),
+          reason: "tab_closed_before_post_capture",
+          note: "Only privacy-preserving screenshot fingerprints are returned; request explicit screenshots when pixels are needed.",
+        };
+      } else {
+        try {
+          const afterVisual = screenshotFingerprint(
+            await this.#transport.call("browser.screenshot", {
+              tabId,
+              mode: "viewport",
+              quality: 60,
+              maxWidth: 1280,
+              maxHeight: 720,
+            }),
+          );
+          visualTrace = {
+            available: beforeVisual !== undefined && afterVisual !== undefined,
+            ...(beforeVisual === undefined ? {} : { before: beforeVisual }),
+            ...(afterVisual === undefined ? {} : { after: afterVisual }),
+            changed:
+              beforeVisual !== undefined && afterVisual !== undefined
+                ? beforeVisual["sha256"] !== afterVisual["sha256"]
+                : undefined,
+            note: "Only privacy-preserving screenshot fingerprints are returned; request explicit screenshots when pixels are needed.",
+          };
+        } catch (error) {
+          visualTrace = {
+            available: false,
+            ...(beforeVisual === undefined ? {} : { before: beforeVisual }),
+            reason: "post_capture_failed",
+            errorCode:
+              error instanceof Error && "code" in error
+                ? String((error as { code?: unknown }).code)
+                : "SCREENSHOT_UNAVAILABLE",
+          };
+        }
+      }
+    }
 
     let verification: unknown;
     let verifyMs: number | undefined;
@@ -470,7 +541,8 @@ export class EnhancedActionRunner {
       parsed.postSnapshot === undefined &&
       verification === undefined &&
       domDelta === undefined &&
-      timings === undefined
+      timings === undefined &&
+      visualTrace === undefined
     ) {
       return data;
     }
@@ -483,6 +555,7 @@ export class EnhancedActionRunner {
       ...(verification === undefined ? {} : { verification }),
       ...(domDelta === undefined ? {} : { domDelta }),
       ...(timings === undefined ? {} : { timings }),
+      ...(visualTrace === undefined ? {} : { visualTrace }),
     };
   }
 

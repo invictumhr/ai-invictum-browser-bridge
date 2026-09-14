@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { appendFileSync, existsSync, mkdirSync, renameSync, statSync, unlinkSync } from "node:fs";
+import { dirname } from "node:path";
 
 import type { JsonValue } from "@invictum/shared-types";
 
@@ -90,5 +92,48 @@ export class InMemoryAuditLog implements AuditLog {
 
   public list(): readonly AuditEntry[] {
     return this.#entries.map((entry) => ({ ...entry }));
+  }
+}
+
+export interface JsonlAuditLogOptions {
+  /** Rotate before appending when the current file exceeds this size. */
+  maxBytes?: number;
+}
+
+/**
+ * Durable, append-only audit sink. It persists only the already-sanitized
+ * AuditEntry and rotates to a single `.1` file to keep disk usage bounded.
+ */
+export class JsonlAuditLog implements AuditLog {
+  readonly #path: string;
+  readonly #maxBytes: number;
+
+  public constructor(path: string, options: JsonlAuditLogOptions = {}) {
+    this.#path = path;
+    this.#maxBytes = options.maxBytes ?? 20 * 1024 * 1024;
+    mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  }
+
+  public record(input: AuditEntryInput): AuditEntry {
+    const { parameters, timestamp, ...metadata } = input;
+    const entry: AuditEntry = {
+      ...metadata,
+      id: randomUUID(),
+      timestamp: timestamp ?? new Date().toISOString(),
+      sanitizedParameters: sanitizeAuditValue(parameters),
+    };
+    this.#rotateIfNeeded();
+    appendFileSync(this.#path, `${JSON.stringify(entry)}\n`, {
+      encoding: "utf8",
+      mode: 0o600,
+    });
+    return entry;
+  }
+
+  #rotateIfNeeded(): void {
+    if (!existsSync(this.#path) || statSync(this.#path).size < this.#maxBytes) return;
+    const rotated = `${this.#path}.1`;
+    if (existsSync(rotated)) unlinkSync(rotated);
+    renameSync(this.#path, rotated);
   }
 }

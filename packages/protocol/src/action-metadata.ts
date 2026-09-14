@@ -33,6 +33,7 @@ const metadata = (
 export const ACTION_METADATA = {
   "system.ping": metadata("diagnostic", false, { readOnly: true, idempotent: true }),
   "system.capabilities": metadata("diagnostic", false, { readOnly: true, idempotent: true }),
+  "system.health_details": metadata("diagnostic", false, { readOnly: true, idempotent: true }),
   "browser.list_tabs": metadata("R0", false, { readOnly: true, idempotent: true }),
   "browser.open_tab": metadata("R1", false),
   "browser.close_tab": metadata("R2", true, { destructive: true }),
@@ -96,6 +97,16 @@ export const ACTION_METADATA = {
   "browser.get_http_auth_state": metadata("R0", true, { readOnly: true, idempotent: true }),
   "browser.authenticate_http": metadata("R2", true),
   "browser.handle_javascript_dialog": metadata("R2", true, { destructive: true }),
+  "browser.list_frames": metadata("R0", true, { readOnly: true, idempotent: true }),
+  "browser.get_navigation_state": metadata("R0", true, { readOnly: true, idempotent: true }),
+  "browser.get_performance_metrics": metadata("R0", true, { readOnly: true, idempotent: true }),
+  "browser.get_accessibility_tree": metadata("R0", true, { readOnly: true, idempotent: true }),
+  "browser.download": metadata("R2", true, { destructive: true }),
+  "browser.wait_for_download": metadata("R0", true, { readOnly: true, idempotent: true }),
+  "browser.list_webmcp_tools": metadata("R0", true, { readOnly: true, idempotent: true }),
+  "browser.invoke_webmcp_tool": metadata("R3", true, { destructive: true }),
+  "browser.cancel_webmcp_invocation": metadata("R1", true, { idempotent: true }),
+  "browser.compare_screenshot": metadata("R0", true, { readOnly: true, idempotent: true }),
 } as const satisfies Readonly<Record<string, ActionMetadata>>;
 
 export type KnownBrowserAction = keyof typeof ACTION_METADATA;

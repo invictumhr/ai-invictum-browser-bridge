@@ -1,3 +1,5 @@
+import { readControlToken } from "@invictum/agent-sdk";
+
 export class ControlError extends Error {
   public constructor(
     public readonly code: string,
@@ -41,12 +43,16 @@ export class ControlClient {
   }
 
   private async request(path: string, body?: unknown): Promise<Record<string, unknown>> {
+    const controlToken = readControlToken();
     const response = await fetch(`${this.#baseUrl}${path}`, {
       ...(body === undefined
         ? {}
         : {
             method: "POST",
-            headers: { "content-type": "application/json" },
+            headers: {
+              "content-type": "application/json",
+              ...(controlToken === undefined ? {} : { authorization: `Bearer ${controlToken}` }),
+            },
             body: JSON.stringify(body),
           }),
     });

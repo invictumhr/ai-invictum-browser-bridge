@@ -1,6 +1,7 @@
 import { IBP_ERROR_CODES, ListTabsDataSchema, type BrowserTab } from "@invictum/protocol";
 
 import { ExtensionCommandError } from "./command-error.js";
+import { isAgentWindowSentinelUrl } from "./agent-window.js";
 
 const RESTRICTED_PROTOCOLS = new Set([
   "about:",
@@ -105,7 +106,11 @@ export class ChromeTabsAdapter {
     }
 
     try {
-      const tabs = (await chrome.tabs.query({})).map(mapChromeTab);
+      // Even when the user has enabled split-incognito access for this
+      // unpacked extension, the agent surface remains normal-profile only.
+      const tabs = (await chrome.tabs.query({}))
+        .filter((tab) => !tab.incognito && !isAgentWindowSentinelUrl(tab.pendingUrl ?? tab.url))
+        .map(mapChromeTab);
       return ListTabsDataSchema.parse({ tabs, count: tabs.length, permission: "tabs" });
     } catch (error) {
       if (error instanceof ExtensionCommandError) {

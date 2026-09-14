@@ -1,4 +1,8 @@
 const STORAGE_KEY = "invictum.agent.window";
+export const AGENT_WINDOW_SENTINEL_PATH = "popup.html#agent-window-sentinel";
+
+export const isAgentWindowSentinelUrl = (url: string | undefined): boolean =>
+  url?.endsWith(`/${AGENT_WINDOW_SENTINEL_PATH}`) === true;
 
 /**
  * Keeps agent-created tabs out of the window the user is working in.
@@ -51,14 +55,26 @@ export class AgentWindow {
     if (windowId !== undefined) {
       return chrome.tabs.create({ url, active, windowId });
     }
-    const created = await chrome.windows.create({ url, focused: false });
-    const tab = created?.tabs?.[0];
-    if (created?.id === undefined || tab === undefined) {
+    // Chrome necessarily marks the only tab in a new window active. Create a
+    // private extension sentinel first, then create the requested tab with the
+    // caller's exact active flag. This preserves active:false without putting
+    // the tab in the user's current window or raising the agent window.
+    const created = await chrome.windows.create({
+      url: chrome.runtime.getURL(AGENT_WINDOW_SENTINEL_PATH),
+      focused: false,
+    });
+    if (created?.id === undefined) {
       // Chrome refused a new window (for example in a locked-down profile);
       // fall back to the ordinary behaviour rather than failing the call.
       return chrome.tabs.create({ url, active });
     }
-    await this.#remember(created.id);
-    return tab;
+    try {
+      const tab = await chrome.tabs.create({ url, active, windowId: created.id });
+      await this.#remember(created.id);
+      return tab;
+    } catch (error) {
+      await chrome.windows.remove(created.id).catch(() => undefined);
+      throw error;
+    }
   }
 }

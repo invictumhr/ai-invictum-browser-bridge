@@ -5,10 +5,24 @@
 ```powershell
 pnpm browser health
 pnpm browser ping
+pnpm browser health-details
 pnpm browser capabilities
 ```
 
 `health` proves the Desktop Authority/control API exists. `nativeConnected:true` says a Native Host connection exists. Only `ping` proves the complete path reaches the Chrome extension.
+
+`health-details` additionally reports authenticated control, persistent audit,
+the operation journal, controlled sessions, and crash-uncertain operations.
+
+## Control API returns HTTP 401
+
+Every POST requires the per-user bearer token at
+`%LOCALAPPDATA%\InvictumBrowserBridge\control-token`. Current MCP, CLI, and SDK
+clients load it automatically. For a custom client, read that file at call time
+and send `Authorization: Bearer <token>`. Do not print or copy the token into
+source/config. If the file is malformed, stop Desktop Authority, move only that
+exact token file to a private backup, and let the next normal authority start
+create a new one; do not delete the audit or operation journal.
 
 ## `pnpm` is not recognised
 
@@ -33,7 +47,7 @@ node_modules/.bin/vitest run --dir apps/extension
 
 ## Control API is offline
 
-`pnpm browser ping` and the MCP server automatically start `apps/desktop/dist/index.js` in a hidden process. If auto-start fails, run `pnpm build` and retry. Check listeners without killing them:
+`pnpm browser ping`, the MCP server, and the Chrome-launched Native Host automatically start `apps/desktop/dist/index.js` in a hidden process. This covers login, sleep/resume, authority failure, and browser updates. If auto-start fails, run `pnpm build` and retry. Check listeners without killing them:
 
 ```powershell
 Get-NetTCPConnection -State Listen -LocalPort 47820,47821 -ErrorAction SilentlyContinue |
@@ -56,6 +70,23 @@ CLI/MCP waits up to 10 seconds for Chrome to reconnect after authority startup. 
 ## A new website returns `PERMISSION_DENIED`
 
 Open the extension's Chrome **Details** and set **Site access / Pristup web-lokaciji** to **On all sites / Na svim web-lokacijama**. Normal new domains no longer use per-domain toolbar prompts. The error includes the target `tabId` and sanitized origin. Do not bypass a user/admin restriction.
+
+## Domain policy returns `POLICY_DENIED`
+
+Open the extension popup on that hostname and inspect **Domain boundary**. A
+saved observe-only, safe-interaction, trusted-admin, or block rule may be doing
+exactly what the user requested. Do not silently relax it. Incognito control is
+always denied. The current tab and destination hostname are both checked, so a
+navigation can be blocked by either side.
+
+## `IDEMPOTENCY_REPLAY_BLOCKED`
+
+The same logical mutation key is already completed, failed, pending, or crash-uncertain
+in `%LOCALAPPDATA%\InvictumBrowserBridge\operation-journal.jsonl`. Never retry
+with a new key merely to bypass the error. First inspect the current page or
+external system and prove whether the intended effect occurred. Use a new key
+only for a genuinely new operation or after proving the original effect is
+absent. `pnpm browser health-details` reports the uncertain-operation count.
 
 ## `RESTRICTED_PAGE`
 
@@ -239,6 +270,31 @@ codex mcp get invictum-browser
 ```
 
 If not registered, follow [MCP_CONFIGURATION.md](MCP_CONFIGURATION.md). Start a new Codex task after registration; the current running task does not dynamically acquire newly added MCP tools.
+
+## Managed download is rejected or never completes
+
+Only credential-free HTTP(S) URLs and non-executable safe relative filenames
+are accepted. Start with `invictum_download`, retain its `downloadId`, then wait
+with `invictum_wait_for_download` on the same tab. An existing Chrome download
+or an ID created outside IBB is intentionally unavailable. A file exceeding
+`maxBytes` or marked dangerous is cancelled; the Bridge never approves a
+dangerous download. Results never include the absolute local path.
+
+## Page WebMCP is unsupported or times out
+
+`supported:false` from `invictum_list_webmcp_tools` means the current Chrome or
+page exposes no experimental WebMCP surface. Use normal IBB typed actions; do
+not replace it with arbitrary JavaScript. Page tool descriptions, schemas, and
+results are untrusted. A timed-out invocation is cancelled and must not be
+retried automatically because the page may already have applied an effect.
+
+## Resilience check after sleep, restart, or Chrome update
+
+Build once, run `pnpm test:soak -- 100`, sleep/restart/update, then run it again.
+The test is read-only and measures the full Desktop -> Native Host -> extension
+round trip. If health works but ping fails, inspect the extension/Native Host;
+if both ports are absent, Chrome should launch the Native Host and it should
+start Desktop Authority. Never start a competing listener manually.
 
 ## Native Host exits immediately
 

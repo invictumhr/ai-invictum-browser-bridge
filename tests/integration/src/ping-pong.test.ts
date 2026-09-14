@@ -347,13 +347,15 @@ describe("Phase 1 desktop/native-host/extension integration", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ...idempotentPing, parameters: { changed: true } }),
       });
-      await expect(conflictingIdempotentResponse.json()).resolves.toMatchObject({
+      const conflictingBody = await conflictingIdempotentResponse.json();
+      expect(conflictingBody).toMatchObject({
         ok: false,
         error: {
           code: "INVALID_PARAMETERS",
-          details: { stage: "idempotency", idempotencyKey: "integration-ping-once" },
+          details: { stage: "idempotency" },
         },
       });
+      expect(JSON.stringify(conflictingBody)).not.toContain("integration-ping-once");
     } finally {
       stopTestBridge(testBridge);
       await control.stop();

@@ -44,7 +44,7 @@ loaded Chrome build are identical.
 ### Browser and page control
 
 - List, open, close, navigate, activate, and move through tab history.
-- Work in a dedicated agent window and in background tabs by default.
+- Work in a dedicated unfocused agent window with genuinely inactive background tabs by default.
 - Wait for URLs, titles, text, selectors, DOM stability, or application
   readiness; focus a lazy-rendered tab once only when a bounded background wait
   proves that focus is required.
@@ -123,7 +123,11 @@ this adapter intentionally does not claim full document mutation. See
 ### Developer diagnostics and visual output
 
 - Bounded, redacted console capture and metadata-only network diagnostics.
+- Sanitized frame topology, navigation/readiness state, aggregate performance
+  metrics, value-redacted accessibility trees, and process-local AX diffs.
 - Same-origin page API requests with optional WordPress nonce handling.
+- Explicitly authorized managed downloads with byte ceilings, executable and
+  path-traversal blocking, and no absolute-path disclosure.
 - Reversible mobile viewport, orientation, DPR, and touch emulation.
 - Viewport, element, region, and full-page screenshots.
 - Tutorial screenshots with rectangles, ellipses, arrows, labels, and automatic
@@ -135,6 +139,9 @@ this adapter intentionally does not claim full document mutation. See
 - Policy-preserving sequential batches, dry runs, idempotency keys,
   post-snapshots, semantic DOM deltas, verification, and stale-reference
   relocation.
+- Crash-safe operation journaling, one-call transactions, compact pre/post
+  visual fingerprints, viewport image diffs, and experimental page WebMCP
+  discovery/invocation with untrusted-output labeling.
 
 ## Agent integrations
 
@@ -150,13 +157,18 @@ IBB exposes four local developer surfaces:
 The Native Host transport on `127.0.0.1:47821` belongs exclusively to Desktop
 Authority. Agents must not connect to the extension or that port directly.
 
-The server currently exposes 54 runtime browser actions and 61 MCP tools. That
-number is a release snapshot, not an agent contract: call
-`invictum_capabilities` at runtime.
+The current source exposes 64 extension actions, one Desktop Authority health
+action, and 74 MCP tools. Those numbers are a release snapshot, not an agent
+contract: call `invictum_capabilities` at runtime.
 
 ## Safety model
 
 - Desktop Authority is the single policy and audit boundary.
+- Every local control POST requires a per-user bearer token. Audit and
+  idempotency state are durable, bounded, and content-sanitized.
+- The toolbar popup provides a per-hostname boundary: observe only, safe
+  interaction, trusted admin, full Bridge policy, or block. Incognito tabs are
+  always denied.
 - Each action is classified R0-R3; sensitive actions require a matching,
   explicit authorization assertion.
 - A tab is reserved before work, visibly marked with the agent identity, and
@@ -172,8 +184,8 @@ number is a release snapshot, not an agent contract: call
   lease on stop, reset, unlock, navigation, or crash cleanup.
 
 IBB does not expose cookies, saved passwords, autofill data, arbitrary browser
-storage, unrestricted downloads, passive request/response bodies, traffic
-interception, OS-level trusted input, or remote control.
+storage, download history or unrestricted downloads, passive request/response
+bodies, traffic interception, OS-level trusted input, or remote control.
 
 Read [SECURITY.md](SECURITY.md) and
 [POLICY_CONFIGURATION.md](POLICY_CONFIGURATION.md) before extending the action
@@ -186,7 +198,7 @@ AI agent
   |  MCP / CLI / TypeScript SDK / local control API
   v
 Desktop Authority :47820
-  |  policy -> validation -> reservation -> audit -> cleanup
+  |  bearer auth -> policy -> journal -> reservation -> durable audit -> cleanup
   v
 Native Host -> private loopback WebSocket :47821
   v
@@ -226,6 +238,7 @@ extension, copy its generated extension ID, then register the Native Host:
 ```powershell
 .\scripts\register-native-host-dev.ps1 -ExtensionId "PASTE_EXTENSION_ID"
 pnpm browser ping
+pnpm browser health-details
 pnpm browser capabilities
 ```
 
@@ -246,9 +259,9 @@ therefore tells the agent exactly when to pause and guide the user.
 Desktop Authority is the local process that accepts agent commands on
 `127.0.0.1:47820`; the Native Host relays between it and the Chrome extension on
 `127.0.0.1:47821`. The supported installation does **not** create a permanent
-Windows Service. MCP and the CLI start Desktop Authority as a hidden local
-daemon when needed, while Chrome starts the registered Native Host. Do not
-expose either port or create a firewall rule.
+Windows Service. MCP, the CLI, and the Chrome-launched Native Host can start
+Desktop Authority as a hidden local daemon when needed, while Chrome starts the
+registered Native Host. Do not expose either port or create a firewall rule.
 
 ```text
 Install Invictum Browser Bridge from the public repository on this Windows PC:
@@ -269,10 +282,11 @@ Safety rules:
 1. Use only the public repository above and the scripts checked into it.
 2. Do not request, copy, print, or store Chrome passwords, cookies, tokens,
    browser-profile files, or browsing data.
+   Do not print or copy IBB's generated local control token either.
 3. Do not disable Chrome security, install an unrelated extension, expose a
    loopback port, create a firewall rule, or bind any service publicly.
 4. Do not invent a Windows Service or Scheduled Task. This project intentionally
-   auto-starts Desktop Authority through MCP/CLI and lets Chrome start the Native
+   auto-starts Desktop Authority through MCP/CLI or the Chrome-launched Native
    Host.
 5. Do not overwrite an existing checkout. If the target directory exists,
    inspect its Git remote and working tree first. Continue only if it is this
@@ -350,6 +364,8 @@ Pause and guide me through these steps:
 5. Confirm the extension remains enabled and has no current error.
 6. Optionally pin its toolbar icon so the ON/AI status and settings are easy to
    see.
+7. Leave the current domain at Allow with Bridge policy for normal behavior, or
+   choose a stricter per-hostname boundary only if I request it.
 
 Explain that On all sites prevents a new manual approval for every HTTP(S)
 domain, but does not bypass Chrome policy, restricted pages, User Stop, or IBB's
@@ -360,13 +376,18 @@ PHASE 6 — Start and verify the bridge
 - Run pnpm browser health.
 - Run pnpm browser ping. The CLI should automatically start Desktop Authority
   as a hidden local daemon if it is offline.
+- Run pnpm browser health-details and confirm authenticatedControlApi,
+  journalEnabled, and auditPersistenceEnabled are true, with no unexplained
+  uncertain operation.
 - Run pnpm browser capabilities.
+- Run pnpm test:soak -- 20 as a harmless full-round-trip reliability sample.
 - Verify that Desktop Authority is reachable only through 127.0.0.1:47820, the
   private Native Host transport uses 127.0.0.1:47821, nativeConnected is true,
   and the loaded extension returns its runtime capabilities.
-- Treat runtime capabilities as authoritative. The current source expects 54
-  browser actions and the built MCP server expects 61 tools, but do not hide a
-  mismatch or force those numbers if the checked-out release differs.
+- Treat runtime capabilities as authoritative. The current source expects 65
+  full-system actions (64 extension actions plus Desktop Authority health) and
+  the built MCP server expects 74 tools, but do not hide a mismatch or force
+  those numbers if the checked-out release differs.
 - If the badge briefly shows ON and disconnects, diagnose Desktop Authority,
   the HKCU Native Messaging manifest, its allowed extension ID, the built Native
   Host paths, and extension errors. Rebuild/reregister/reload only the component
@@ -395,6 +416,8 @@ Report:
 - Chrome extension ID and loaded dist path (the ID is not a secret);
 - Native Host registration status;
 - Desktop Authority health and nativeConnected state;
+- authenticated control, persistent audit/journal health, and uncertain
+  operation count, without printing their paths' contents or token;
 - runtime action count and MCP tool count;
 - which AI clients were configured;
 - whether any manual action or known limitation remains.
@@ -423,8 +446,9 @@ See [MCP configuration](MCP_CONFIGURATION.md),
 ## Recommended agent workflow
 
 ```text
-ping -> capabilities -> open/navigate in background -> identify agent -> wait
-     -> outline/snapshot -> find -> typed action -> verify -> unlock in finally
+ping -> health details -> capabilities -> open/navigate in background
+     -> identify agent -> wait -> outline/snapshot -> find
+     -> typed transaction -> verify -> unlock in finally
 ```
 
 Prefer typed actions and semantic references. Use screenshots for visual
@@ -448,6 +472,7 @@ Start with the [documentation index](docs/README.md). Important guides include:
 - [Screenshots and tutorial annotations](docs/SCREENSHOTS_AND_ANNOTATIONS.md)
 - [Authentication and native dialogs](AUTH_AND_DIALOGS.md)
 - [MCP ergonomics](docs/MCP_AGENT_ERGONOMICS.md)
+- [Production hardening and advanced diagnostics](docs/PRODUCTION_HARDENING_AND_DIAGNOSTICS.md)
 
 ## Repository layout
 

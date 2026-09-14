@@ -42,12 +42,16 @@ Run from the repository root in a normal PowerShell window:
 ```powershell
 .\scripts\register-native-host-dev.ps1 -ExtensionId "PASTE_EXTENSION_ID"
 pnpm browser ping
+pnpm browser health-details
 pnpm browser capabilities
 ```
 
 Registration is per user under `HKCU`; administrator rights are not required.
-The CLI, MCP server, and SDK start Desktop Authority automatically when its
-loopback control API is offline.
+The CLI, MCP server, SDK, and Chrome-launched Native Host start Desktop
+Authority automatically when its loopback control API is offline. Desktop
+Authority creates a per-user control token plus bounded audit and operation
+journal under `%LOCALAPPDATA%\InvictumBrowserBridge`; do not publish or print
+their contents.
 
 Reload **Invictum Browser Controller** once on `chrome://extensions` after the
 first registration. The toolbar badge should show `ON` after a successful Native
@@ -72,7 +76,9 @@ Without changing browser state:
 ```powershell
 pnpm browser health
 pnpm browser ping
+pnpm browser health-details
 pnpm browser capabilities
+pnpm test:soak -- 20
 ```
 
 After an extension rebuild and manual Reload, run the complete prepared gate:
@@ -81,10 +87,10 @@ After an extension rebuild and manual Reload, run the complete prepared gate:
 powershell -ExecutionPolicy Bypass -File .\scripts\verify-after-reload.ps1
 ```
 
-The gate checks the 54-action extension contract, the 61-tool MCP surface, the
-current feature flags, the deterministic fixture, and real-Chrome integration
-workflows. Runtime capabilities remain authoritative if the numbers change in a
-future release.
+The gate checks 65 full-system actions (64 extension actions plus Desktop
+Authority health), the 74-tool MCP surface, current feature flags, the
+deterministic fixture, and real-Chrome integration workflows. Runtime
+capabilities remain authoritative if the numbers change in a future release.
 
 ## Updating
 

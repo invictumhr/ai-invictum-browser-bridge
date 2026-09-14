@@ -54,7 +54,18 @@ import {
   BROWSER_PRINT_TO_PDF_ACTION,
   BROWSER_PAGE_API_REQUEST_ACTION,
   SYSTEM_CAPABILITIES_ACTION,
+  SYSTEM_HEALTH_DETAILS_ACTION,
   SYSTEM_PING_ACTION,
+  BROWSER_LIST_FRAMES_ACTION,
+  BROWSER_GET_NAVIGATION_STATE_ACTION,
+  BROWSER_GET_PERFORMANCE_METRICS_ACTION,
+  BROWSER_GET_ACCESSIBILITY_TREE_ACTION,
+  BROWSER_DOWNLOAD_ACTION,
+  BROWSER_WAIT_FOR_DOWNLOAD_ACTION,
+  BROWSER_LIST_WEBMCP_TOOLS_ACTION,
+  BROWSER_INVOKE_WEBMCP_TOOL_ACTION,
+  BROWSER_CANCEL_WEBMCP_INVOCATION_ACTION,
+  BROWSER_COMPARE_SCREENSHOT_ACTION,
 } from "./factories.js";
 import { parameterValidationError } from "./errors.js";
 import {
@@ -110,6 +121,17 @@ import {
   GetFigmaPropertiesParametersSchema,
   FigmaSelectParametersSchema,
   FigmaHealthcheckParametersSchema,
+  SystemHealthDetailsParametersSchema,
+  ListFramesParametersSchema,
+  GetNavigationStateParametersSchema,
+  GetPerformanceMetricsParametersSchema,
+  GetAccessibilityTreeParametersSchema,
+  StartDownloadParametersSchema,
+  WaitForDownloadParametersSchema,
+  ListWebMcpToolsParametersSchema,
+  InvokeWebMcpToolParametersSchema,
+  CancelWebMcpInvocationParametersSchema,
+  CompareScreenshotParametersSchema,
 } from "./schemas.js";
 
 interface ActionParameterDefinition {
@@ -122,6 +144,7 @@ const revisionKeys = ["tabId", "documentId", "domRevision", "elementId"] as cons
 const definitions: Readonly<Record<string, ActionParameterDefinition>> = {
   [SYSTEM_PING_ACTION]: { schema: SystemPingParametersSchema, keys: ["sentAt", "nonce"] },
   [SYSTEM_CAPABILITIES_ACTION]: { schema: SystemCapabilitiesParametersSchema, keys: [] },
+  [SYSTEM_HEALTH_DETAILS_ACTION]: { schema: SystemHealthDetailsParametersSchema, keys: [] },
   [BROWSER_LIST_TABS_ACTION]: { schema: ListTabsParametersSchema, keys: [] },
   [BROWSER_OPEN_TAB_ACTION]: {
     schema: OpenTabParametersSchema,
@@ -451,6 +474,46 @@ const definitions: Readonly<Record<string, ActionParameterDefinition>> = {
       "useWordPressNonce",
       "authorization",
     ],
+  },
+  [BROWSER_LIST_FRAMES_ACTION]: {
+    schema: ListFramesParametersSchema,
+    keys: ["tabId", "maxFrames"],
+  },
+  [BROWSER_GET_NAVIGATION_STATE_ACTION]: {
+    schema: GetNavigationStateParametersSchema,
+    keys: ["tabId", "maxHistoryEntries"],
+  },
+  [BROWSER_GET_PERFORMANCE_METRICS_ACTION]: {
+    schema: GetPerformanceMetricsParametersSchema,
+    keys: ["tabId"],
+  },
+  [BROWSER_GET_ACCESSIBILITY_TREE_ACTION]: {
+    schema: GetAccessibilityTreeParametersSchema,
+    keys: ["tabId", "frameId", "depth", "maxNodes", "interestingOnly"],
+  },
+  [BROWSER_DOWNLOAD_ACTION]: {
+    schema: StartDownloadParametersSchema,
+    keys: ["tabId", "url", "filename", "maxBytes", "authorization"],
+  },
+  [BROWSER_WAIT_FOR_DOWNLOAD_ACTION]: {
+    schema: WaitForDownloadParametersSchema,
+    keys: ["tabId", "downloadId", "timeoutMs"],
+  },
+  [BROWSER_LIST_WEBMCP_TOOLS_ACTION]: {
+    schema: ListWebMcpToolsParametersSchema,
+    keys: ["tabId", "discoveryWaitMs"],
+  },
+  [BROWSER_INVOKE_WEBMCP_TOOL_ACTION]: {
+    schema: InvokeWebMcpToolParametersSchema,
+    keys: ["tabId", "frameId", "toolName", "input", "timeoutMs", "authorization"],
+  },
+  [BROWSER_CANCEL_WEBMCP_INVOCATION_ACTION]: {
+    schema: CancelWebMcpInvocationParametersSchema,
+    keys: ["tabId", "invocationId"],
+  },
+  [BROWSER_COMPARE_SCREENSHOT_ACTION]: {
+    schema: CompareScreenshotParametersSchema,
+    keys: ["tabId", "baselineDataUrl", "quality", "threshold"],
   },
 };
 

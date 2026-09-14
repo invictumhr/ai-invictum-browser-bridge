@@ -57,9 +57,32 @@ import {
   type TerminalInputInput,
   type PrintToPdfInput,
   type PageApiRequestInput,
+  SYSTEM_HEALTH_DETAILS_ACTION,
+  BROWSER_LIST_FRAMES_ACTION,
+  BROWSER_GET_NAVIGATION_STATE_ACTION,
+  BROWSER_GET_PERFORMANCE_METRICS_ACTION,
+  BROWSER_GET_ACCESSIBILITY_TREE_ACTION,
+  BROWSER_DOWNLOAD_ACTION,
+  BROWSER_WAIT_FOR_DOWNLOAD_ACTION,
+  BROWSER_LIST_WEBMCP_TOOLS_ACTION,
+  BROWSER_INVOKE_WEBMCP_TOOL_ACTION,
+  BROWSER_CANCEL_WEBMCP_INVOCATION_ACTION,
+  BROWSER_COMPARE_SCREENSHOT_ACTION,
+  SystemHealthDetailsDataSchema,
+  ListFramesDataSchema,
+  GetNavigationStateDataSchema,
+  GetPerformanceMetricsDataSchema,
+  GetAccessibilityTreeDataSchema,
+  ManagedDownloadDataSchema,
+  ListWebMcpToolsDataSchema,
+  InvokeWebMcpToolDataSchema,
+  CancelWebMcpInvocationDataSchema,
+  CompareScreenshotDataSchema,
 } from "@invictum/protocol";
 
 import type { BrowserOperationContext, DesktopBridgeServer } from "./server.js";
+import { controlTokenMatches } from "./control-security.js";
+import { OperationJournal } from "./operation-journal.js";
 
 const MAX_BODY_BYTES = 1024 * 1024;
 
@@ -67,6 +90,9 @@ export interface DesktopControlServerOptions {
   bridge: DesktopBridgeServer;
   host?: string;
   port?: number;
+  authToken?: string | false;
+  journalPath?: string;
+  auditPersistenceEnabled?: boolean;
 }
 
 export interface DesktopControlAddress {
@@ -100,6 +126,19 @@ const MAX_IDEMPOTENCY_ENTRIES = 256;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
+
+const advancedResultSchemas: Readonly<Record<string, { parse(value: unknown): unknown }>> = {
+  [BROWSER_LIST_FRAMES_ACTION]: ListFramesDataSchema,
+  [BROWSER_GET_NAVIGATION_STATE_ACTION]: GetNavigationStateDataSchema,
+  [BROWSER_GET_PERFORMANCE_METRICS_ACTION]: GetPerformanceMetricsDataSchema,
+  [BROWSER_GET_ACCESSIBILITY_TREE_ACTION]: GetAccessibilityTreeDataSchema,
+  [BROWSER_DOWNLOAD_ACTION]: ManagedDownloadDataSchema,
+  [BROWSER_WAIT_FOR_DOWNLOAD_ACTION]: ManagedDownloadDataSchema,
+  [BROWSER_LIST_WEBMCP_TOOLS_ACTION]: ListWebMcpToolsDataSchema,
+  [BROWSER_INVOKE_WEBMCP_TOOL_ACTION]: InvokeWebMcpToolDataSchema,
+  [BROWSER_CANCEL_WEBMCP_INVOCATION_ACTION]: CancelWebMcpInvocationDataSchema,
+  [BROWSER_COMPARE_SCREENSHOT_ACTION]: CompareScreenshotDataSchema,
+};
 
 export const canonicalize = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map(canonicalize);
@@ -177,6 +216,9 @@ export class DesktopControlServer {
   readonly #requestedPort: number;
   readonly #controlledTabs = new Map<string, Set<number>>();
   readonly #idempotency = new Map<string, IdempotencyEntry>();
+  readonly #authToken: string | undefined;
+  readonly #journal: OperationJournal | undefined;
+  readonly #auditPersistenceEnabled: boolean;
   #server: Server | undefined;
   #address: DesktopControlAddress | undefined;
 
@@ -187,6 +229,10 @@ export class DesktopControlServer {
       throw new Error("Desktop control API must bind to a loopback address");
     }
     this.#requestedPort = options.port ?? 47_820;
+    this.#authToken = options.authToken === false ? undefined : options.authToken;
+    this.#journal =
+      options.journalPath === undefined ? undefined : new OperationJournal(options.journalPath);
+    this.#auditPersistenceEnabled = options.auditPersistenceEnabled ?? false;
   }
 
   public async start(): Promise<DesktopControlAddress> {
@@ -247,6 +293,19 @@ export class DesktopControlServer {
             false,
           );
         }
+        if (this.#authToken !== undefined) {
+          const authorization = request.headers.authorization;
+          const supplied = authorization?.startsWith("Bearer ")
+            ? authorization.slice("Bearer ".length)
+            : undefined;
+          if (!controlTokenMatches(this.#authToken, supplied)) {
+            throw new IbpProtocolError(
+              IBP_ERROR_CODES.AUTHENTICATION_FAILED,
+              "Control API authentication failed",
+              false,
+            );
+          }
+        }
       }
       if (request.method === "GET" && request.url === "/v1/health") {
         writeJson(response, 200, {
@@ -257,6 +316,8 @@ export class DesktopControlServer {
           protocolVersion: "1.0",
           nativeUrl: this.#bridge.address?.url,
           controlUrl: this.#address?.url,
+          authenticationRequired: this.#authToken !== undefined,
+          uncertainOperations: this.#journal?.uncertainCount ?? 0,
         });
         return;
       }
@@ -336,7 +397,15 @@ export class DesktopControlServer {
       const validationFailure =
         protocolError.code === IBP_ERROR_CODES.INVALID_MESSAGE ||
         protocolError.code === IBP_ERROR_CODES.INVALID_PARAMETERS;
-      writeJson(response, validationFailure ? 400 : 409, {
+      const status =
+        protocolError.code === IBP_ERROR_CODES.AUTHENTICATION_FAILED
+          ? 401
+          : protocolError.code === IBP_ERROR_CODES.PERMISSION_DENIED
+            ? 403
+            : validationFailure
+              ? 400
+              : 409;
+      writeJson(response, status, {
         ok: false,
         error: {
           code: protocolError.code,
@@ -387,7 +456,6 @@ export class DesktopControlServer {
               stage: "idempotency",
               action: input.action,
               tabScope,
-              idempotencyKey,
               recovery: "Generate a new idempotencyKey for a different logical operation.",
             },
           },
@@ -396,13 +464,66 @@ export class DesktopControlServer {
       return existing.promise;
     }
 
+    const durable = this.#journal?.find(registryKey);
+    if (durable !== undefined) {
+      if (durable.parameterHash !== hash) {
+        throw new IbpProtocolError(
+          IBP_ERROR_CODES.INVALID_PARAMETERS,
+          "The durable idempotency key was already used with different parameters",
+          false,
+          { details: { stage: "durable_idempotency", action: input.action, tabScope } },
+        );
+      }
+      throw new IbpProtocolError(
+        IBP_ERROR_CODES.IDEMPOTENCY_REPLAY_BLOCKED,
+        `Operation ${durable.operationId} is already ${durable.state}; verify browser state instead of replaying it`,
+        false,
+        {
+          details: {
+            stage: "durable_idempotency",
+            operationId: durable.operationId,
+            state: durable.state,
+            action: durable.action,
+            tabScope: durable.tabScope,
+            recovery:
+              "Inspect current page state and use a new key only for a genuinely new operation.",
+          },
+        },
+      );
+    }
+
+    const operation = this.#journal?.start({
+      registryKey,
+      action: input.action,
+      tabScope,
+      idempotencyKey,
+      parameterHash: hash,
+    });
     const promise = this.#dispatch(input, context);
     this.#idempotency.set(registryKey, {
       parameterHash: hash,
       promise,
       expiresAt: Date.now() + IDEMPOTENCY_TTL_MS,
     });
-    return promise;
+    try {
+      const result = await promise;
+      if (operation !== undefined) this.#journal?.finish(operation, "completed");
+      return result;
+    } catch (error) {
+      if (operation !== undefined) {
+        const uncertain =
+          error instanceof IbpProtocolError &&
+          (error.retryable ||
+            error.code === IBP_ERROR_CODES.TIMEOUT ||
+            error.code === IBP_ERROR_CODES.NATIVE_HOST_UNAVAILABLE);
+        this.#journal?.finish(
+          operation,
+          uncertain ? "unknown" : "failed",
+          error instanceof IbpProtocolError ? error.code : undefined,
+        );
+      }
+      throw error;
+    }
   }
 
   #pruneIdempotencyEntries(): void {
@@ -450,6 +571,21 @@ export class DesktopControlServer {
     switch (input.action) {
       case "system.capabilities":
         return this.#bridge.capabilities(context.sessionId);
+      case SYSTEM_HEALTH_DETAILS_ACTION:
+        return SystemHealthDetailsDataSchema.parse({
+          component: "desktop-authority",
+          nativeConnected: this.#bridge.connected,
+          authenticatedControlApi: this.#authToken !== undefined,
+          controlledSessions: this.#controlledTabs.size,
+          controlledTabs: [...this.#controlledTabs.values()].reduce(
+            (count, tabs) => count + tabs.size,
+            0,
+          ),
+          inMemoryIdempotencyEntries: this.#idempotency.size,
+          uncertainOperations: this.#journal?.uncertainCount ?? 0,
+          journalEnabled: this.#journal !== undefined,
+          auditPersistenceEnabled: this.#auditPersistenceEnabled,
+        });
       case "browser.list_tabs":
         return this.#bridge.listTabs(context);
       case "browser.open_tab":
@@ -674,12 +810,23 @@ export class DesktopControlServer {
         this.#controlledTabs.get(context.sessionId)?.delete(unlock.tabId);
         return unlock;
       }
-      default:
+      default: {
+        const advancedSchema = advancedResultSchemas[input.action];
+        if (advancedSchema !== undefined) {
+          result = await this.#bridge.registeredAction(
+            context,
+            input.action,
+            parameters as Record<string, unknown>,
+            (value) => advancedSchema.parse(value),
+          );
+          break;
+        }
         throw new IbpProtocolError(
           IBP_ERROR_CODES.UNSUPPORTED_ACTION,
           `Unsupported control action: ${input.action}`,
           false,
         );
+      }
     }
     const tabId = this.#targetTabId(input.action, parameters, result);
     if (tabId !== undefined) {

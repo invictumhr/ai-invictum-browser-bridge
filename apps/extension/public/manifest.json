@@ -11,6 +11,7 @@
     "activeTab",
     "tabs",
     "scripting",
+    "downloads",
     "webRequest",
     "webRequestAuthProvider",
     "debugger"

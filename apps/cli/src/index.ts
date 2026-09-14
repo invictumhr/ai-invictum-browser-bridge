@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -590,6 +590,7 @@ const usage = {
     "invictum-browser health",
     "invictum-browser ping",
     "invictum-browser capabilities",
+    "invictum-browser health-details",
     "invictum-browser list-tabs",
     "invictum-browser open <https-url> [--active|--background]",
     "invictum-browser navigate <tabId> <https-url> [--active|--background]",
@@ -634,12 +635,19 @@ const usage = {
     "invictum-browser api <tabId> <same-origin-url> [METHOD] [--stdin] [--wp-nonce] --instruction <id>",
     "invictum-browser mobile <tabId> [mobile_small|mobile_medium|mobile_large|tablet] [portrait|landscape]",
     "invictum-browser desktop <tabId>",
+    "invictum-browser frames|navigation-state|performance|accessibility <tabId>",
+    "invictum-browser download <tabId> <https-url> --instruction <id>",
+    "invictum-browser download-wait <tabId> <downloadId> [timeoutMs]",
+    "invictum-browser webmcp-list <tabId>",
+    "invictum-browser webmcp-invoke <tabId> <frameId> <toolName> --stdin --instruction <id>",
+    "invictum-browser compare-screenshot <tabId> <baseline.jpg> [outfile.jpg]",
     "invictum-browser unlock <tabId>",
     "invictum-browser call <ibp.action> --stdin",
     "invictum-browser call <ibp.action> '<json-parameters>'",
     "  enhancement flags: --dry-run --post-snapshot <outline|interactive> --dom-delta",
-    "  --verify '<json>' --auto-marks '<json>' --timings --idempotency-key <key>",
+    "  --verify '<json>' --auto-marks '<json>' --timings --visual-trace --idempotency-key <key>",
     "invictum-browser batch --stdin",
+    "invictum-browser transaction <ibp.action> --stdin",
     "invictum-browser close-session",
   ],
   note: "JSON output is compact by default; add --pretty for human-readable output. The CLI auto-starts the desktop authority.",
@@ -653,6 +661,7 @@ const main = async (): Promise<unknown> => {
   await waitForNativeConnection(health);
   if (command === "ping") return client.call("system.ping");
   if (command === "capabilities") return client.call("system.capabilities");
+  if (command === "health-details") return client.call("system.health_details");
   if (command === "list-tabs") return client.call("browser.list_tabs");
   if (command === "open") {
     const active = activationOverride(args.slice(2));
@@ -1157,6 +1166,56 @@ const main = async (): Promise<unknown> => {
       tabId: numberArgument(args[1], "tabId"),
     });
   }
+  if (["frames", "navigation-state", "performance", "accessibility"].includes(command)) {
+    const tabId = numberArgument(args[1], "tabId");
+    const action = {
+      frames: "browser.list_frames",
+      "navigation-state": "browser.get_navigation_state",
+      performance: "browser.get_performance_metrics",
+      accessibility: "browser.get_accessibility_tree",
+    }[command]!;
+    return client.call(action, { tabId });
+  }
+  if (command === "download") {
+    return client.call("browser.download", {
+      tabId: numberArgument(args[1], "tabId"),
+      url: args[2],
+      authorization: explicitAuthorization(),
+    });
+  }
+  if (command === "download-wait") {
+    return client.call("browser.wait_for_download", {
+      tabId: numberArgument(args[1], "tabId"),
+      downloadId: numberArgument(args[2], "downloadId"),
+      ...(args[3] === undefined ? {} : { timeoutMs: numberArgument(args[3], "timeoutMs") }),
+    });
+  }
+  if (command === "webmcp-list") {
+    return client.call("browser.list_webmcp_tools", {
+      tabId: numberArgument(args[1], "tabId"),
+    });
+  }
+  if (command === "webmcp-invoke") {
+    return client.call("browser.invoke_webmcp_tool", {
+      tabId: numberArgument(args[1], "tabId"),
+      frameId: args[2],
+      toolName: args[3],
+      input: args.includes("--stdin") ? await readStdinJson() : {},
+      authorization: explicitAuthorization(),
+    });
+  }
+  if (command === "compare-screenshot") {
+    const tabId = numberArgument(args[1], "tabId");
+    if (args[2] === undefined) throw new Error("compare-screenshot requires baseline.jpg");
+    const baseline = await readFile(resolve(args[2]));
+    return saveScreenshotResult(
+      await client.call("browser.compare_screenshot", {
+        tabId,
+        baselineDataUrl: `data:image/jpeg;base64,${baseline.toString("base64")}`,
+      }),
+      args[3],
+    );
+  }
   if (command === "unlock") {
     const tabId = numberArgument(args[1], "tabId");
     const result = await client.call("browser.unlock_tab", { tabId });
@@ -1175,6 +1234,16 @@ const main = async (): Promise<unknown> => {
   if (command === "batch") {
     if (!args.includes("--stdin")) throw new Error("batch requires --stdin");
     return runBatch(await readStdinJson());
+  }
+  if (command === "transaction") {
+    const action = args[1];
+    if (action === undefined) throw new Error("transaction requires an IBP action");
+    const parameters = args.includes("--stdin") ? await readStdinJson() : jsonArgument(args[2]);
+    if (!isRecord(parameters)) throw new Error("transaction input must be a JSON object");
+    if (typeof parameters["idempotencyKey"] !== "string") {
+      throw new Error(`transaction requires idempotencyKey for logical operation ${action}`);
+    }
+    return enhancedCall(action, parameters);
   }
   if (command === "close-session") {
     const result = await client.closeSession();

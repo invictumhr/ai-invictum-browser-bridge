@@ -21,25 +21,31 @@
    .\scripts\register-native-host-dev.ps1 -ExtensionId "PASTE_EXTENSION_ID"
    ```
 
-5. Start the bridge with `pnpm browser ping`. The CLI automatically starts Desktop Authority if needed.
+5. Start the bridge with `pnpm browser ping`. The CLI or Chrome-launched Native Host automatically starts Desktop Authority if needed.
 6. Reload **Invictum Browser Controller** once on `chrome://extensions`.
 7. Open extension **Details** and verify **Site access / Pristup web-lokaciji** is **On all sites / Na svim web-lokacijama**.
 
 The extension requires `tabs`, `activeTab`, `scripting`, `webRequest`,
-`webRequestAuthProvider`, `debugger`, and HTTP/HTTPS host access. HTTP(S) host
+`webRequestAuthProvider`, `debugger`, `downloads`, and HTTP/HTTPS host access. HTTP(S) host
 access deliberately removes the per-domain toolbar approval that made every
 newly opened site require manual user involvement. `webRequestAuthProvider` is
 used only for explicitly authorized, one-attempt HTTP Basic authentication.
 `debugger` is used only by bounded, tab-scoped adapters such as native dialogs,
 background screenshots, file upload, listener/source inspection, Figma
 selection, browser-hosted terminal input/readback, console/network diagnostics,
-mobile emulation, PDF export, and explicitly authorized R3 raw JavaScript.
+mobile emulation, frame/navigation/performance/accessibility inspection,
+visual comparison, page WebMCP, PDF export, and explicitly authorized R3 raw JavaScript.
+Page WebMCP remains optional and experimental (currently Chrome 149+ with the
+testing flag or an eligible origin trial); the extension never changes browser
+flags on the user's behalf.
+`downloads` is used only for explicitly authorized, byte-bounded managed items;
+IBB cannot expose download history, accept dangerous files, or return a local path.
 Chrome can show its normal debugging warning/banner during those actions.
 Chrome's user/admin setting remains authoritative and can restrict access.
 Browser-internal, extension, DevTools, Web Store, file, and other restricted
 pages remain unavailable.
 
-The toolbar badge shows `ON` after the Native Messaging round trip is connected. A left click opens the settings popup. **Work in the background** is the initial default and prevents omitted-`active` `open_tab`/`navigate` calls from switching the user's current tab; **Activate the agent tab** restores foreground behavior. Agents can explicitly override either default per call. The popup also shows Bridge/current-tab state and exposes **Reauthorize AI control of this tab** only after the user has pressed the in-page **Stop** button.
+The toolbar badge shows `ON` after the Native Messaging round trip is connected. A left click opens the settings popup. **Work in the background** is the initial default and prevents omitted-`active` `open_tab`/`navigate` calls from switching the user's current tab; **Activate the agent tab** restores foreground behavior. Agents can explicitly override either default per call. The popup also shows Bridge/current-tab state, exposes **Reauthorize AI control of this tab** only after the user has pressed the in-page **Stop** button, and stores a per-hostname domain boundary from observe-only through block. Incognito tabs remain unavailable.
 
 The first targeted agent action automatically changes the target tab to an `AI` badge and adds the in-page control indicator. `browser.unlock_tab` starts the cancellable 20-second release grace; a 30-second lease is crash fallback. Opening the popup or changing its default never reserves a tab.
 

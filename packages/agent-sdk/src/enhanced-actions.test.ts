@@ -155,6 +155,60 @@ describe("EnhancedActionRunner", () => {
     });
   });
 
+  it("returns privacy-preserving visual fingerprints without returning screenshot pixels", async () => {
+    let screenshots = 0;
+    const transport: EnhancedActionTransport = {
+      call: vi.fn(async (action: string) => {
+        if (action === "browser.screenshot") {
+          screenshots += 1;
+          return {
+            dataUrl: `data:image/jpeg;base64,frame-${screenshots}`,
+            width: 1280,
+            height: 720,
+            byteLength: 42,
+          };
+        }
+        return { clicked: true, tabId: 7 };
+      }),
+    };
+    const runner = new EnhancedActionRunner(transport);
+
+    const result = await runner.run("browser.click", { tabId: 7, visualTrace: true });
+
+    expect(result).toMatchObject({
+      clicked: true,
+      visualTrace: {
+        available: true,
+        changed: true,
+        before: { sha256: expect.stringMatching(/^[a-f0-9]{64}$/u), width: 1280, height: 720 },
+        after: { sha256: expect.stringMatching(/^[a-f0-9]{64}$/u), width: 1280, height: 720 },
+      },
+    });
+    expect(JSON.stringify(result)).not.toContain("data:image");
+    expect(screenshots).toBe(2);
+  });
+
+  it("does not report an already-applied action as failed when only the post visual capture fails", async () => {
+    let screenshots = 0;
+    const transport: EnhancedActionTransport = {
+      call: vi.fn(async (action: string) => {
+        if (action === "browser.screenshot") {
+          screenshots += 1;
+          if (screenshots === 2) throw Object.assign(new Error("tab moved"), { code: "TIMEOUT" });
+          return { dataUrl: "data:image/jpeg;base64,before", width: 640, height: 480 };
+        }
+        return { clicked: true, tabId: 7 };
+      }),
+    };
+
+    await expect(
+      new EnhancedActionRunner(transport).run("browser.click", { tabId: 7, visualTrace: true }),
+    ).resolves.toMatchObject({
+      clicked: true,
+      visualTrace: { available: false, reason: "post_capture_failed", errorCode: "TIMEOUT" },
+    });
+  });
+
   it("relocates a nameless generic element without sending invalid empty criteria", async () => {
     let gestureCalls = 0;
     const transport: EnhancedActionTransport = {

@@ -211,7 +211,8 @@ After reloading `apps/extension/dist` once:
 powershell -ExecutionPolicy Bypass -File .\scripts\verify-after-reload.ps1
 ```
 
-The post-Reload gate expects 54 extension actions and 61 MCP tools. Its
+The post-Reload gate expects 65 full-system actions (64 extension actions plus
+Desktop Authority health) and 74 MCP tools. Its
 real-Chrome kitchen-sink and terminal tests cover console capture, mobile
 emulation, semantic/visual and WordPress workflows, plus non-activating trusted
 xterm input and bounded redacted readback. Disposable tabs are explicitly

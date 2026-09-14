@@ -55,6 +55,12 @@ const server = createServer((request, response) => {
     });
     return;
   }
+  if (request.url?.startsWith("/download-test.txt")) {
+    response.setHeader("Content-Type", "text/plain; charset=utf-8");
+    response.setHeader("Content-Disposition", 'attachment; filename="ibb-download-test.txt"');
+    response.end(Buffer.alloc(4_096, "x"));
+    return;
+  }
   if (request.url?.startsWith("/basic-auth")) {
     const parsed = new URL(request.url, fixtureOrigin);
     const rawNonce = parsed.searchParams.get("nonce")?.slice(0, 64) || "default";

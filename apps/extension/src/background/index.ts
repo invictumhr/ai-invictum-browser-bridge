@@ -26,7 +26,35 @@ import { ChromeWordPressAdminAdapter } from "./wordpress-admin.js";
 import { ChromeWordPressEditorAdapter } from "./wordpress-editor.js";
 import { ChromeTerminalAdapter } from "./terminal.js";
 import { debuggerSessions } from "./debugger-session.js";
+import { ChromeDiagnosticsAdapter } from "./diagnostics.js";
+import { ChromeDownloadAdapter } from "./downloads.js";
+import { ChromeWebMcpAdapter } from "./webmcp.js";
 import { TabActivationSettings, type TabActivationMode } from "../tab-activation-settings.js";
+import { DomainPolicySettings, type DomainPolicyMode } from "../domain-policy-settings.js";
+import {
+  BROWSER_CANCEL_WEBMCP_INVOCATION_ACTION,
+  BROWSER_COMPARE_SCREENSHOT_ACTION,
+  BROWSER_DOWNLOAD_ACTION,
+  BROWSER_GET_ACCESSIBILITY_TREE_ACTION,
+  BROWSER_GET_NAVIGATION_STATE_ACTION,
+  BROWSER_GET_PERFORMANCE_METRICS_ACTION,
+  BROWSER_INVOKE_WEBMCP_TOOL_ACTION,
+  BROWSER_LIST_FRAMES_ACTION,
+  BROWSER_LIST_WEBMCP_TOOLS_ACTION,
+  BROWSER_WAIT_FOR_DOWNLOAD_ACTION,
+  IBP_ERROR_CODES,
+  type CancelWebMcpInvocationParameters,
+  type CompareScreenshotParameters,
+  type GetAccessibilityTreeParameters,
+  type GetNavigationStateParameters,
+  type GetPerformanceMetricsParameters,
+  type InvokeWebMcpToolParameters,
+  type ListFramesParameters,
+  type ListWebMcpToolsParameters,
+  type StartDownloadParameters,
+  type WaitForDownloadParameters,
+} from "@invictum/protocol";
+import { ExtensionCommandError } from "./command-error.js";
 
 const tabs = new ChromeTabsAdapter();
 const snapshots = new ChromePageSnapshotAdapter();
@@ -35,6 +63,7 @@ const interactions = new ChromeInteractionsAdapter();
 const javaScript = new ChromeJavaScriptAdapter();
 const screenshot = new ChromeScreenshotAdapter();
 const tabActivationSettings = new TabActivationSettings();
+const domainPolicySettings = new DomainPolicySettings();
 const navigation = new ChromeNavigationAdapter(tabActivationSettings);
 const httpAuth = new ChromeHttpAuthAdapter();
 const dialogs = new ChromeJavaScriptDialogAdapter();
@@ -52,6 +81,9 @@ const figma = new ChromeFigmaAdapter();
 const wordpressMenu = new ChromeWordPressMenuAdapter();
 const wordpressAdmin = new ChromeWordPressAdminAdapter();
 const terminal = new ChromeTerminalAdapter();
+const diagnostics = new ChromeDiagnosticsAdapter();
+const downloads = new ChromeDownloadAdapter();
+const webMcp = new ChromeWebMcpAdapter();
 const wordpressEditor = new ChromeWordPressEditorAdapter((tabId) =>
   snapshots.getPageSnapshot({
     tabId,
@@ -75,6 +107,7 @@ const cleanupAdvancedTab = async (tabId: number): Promise<void> => {
 const indicator = new TabControlIndicator(cleanupAdvancedTab);
 const connection = new NativeConnectionManager(
   {
+    authorizeAction: (action, parameters) => domainPolicySettings.authorize(action, parameters),
     getCapabilities: () => getExtensionCapabilities(),
     listTabs: () => tabs.listTabs(),
     openTab: (parameters) => navigation.openTab(parameters),
@@ -268,6 +301,53 @@ const connection = new NativeConnectionManager(
           return undefined;
         }),
       ),
+    advancedAction: (action, parameters) => {
+      const tabId =
+        typeof parameters === "object" &&
+        parameters !== null &&
+        typeof (parameters as Record<string, unknown>)["tabId"] === "number"
+          ? ((parameters as Record<string, unknown>)["tabId"] as number)
+          : undefined;
+      if (tabId === undefined) {
+        return Promise.reject(
+          new ExtensionCommandError(
+            IBP_ERROR_CODES.INVALID_PARAMETERS,
+            `${action} requires tabId`,
+            false,
+          ),
+        );
+      }
+      return indicator.run(tabId, async () => {
+        switch (action) {
+          case BROWSER_LIST_FRAMES_ACTION:
+            return diagnostics.listFrames(parameters as ListFramesParameters);
+          case BROWSER_GET_NAVIGATION_STATE_ACTION:
+            return diagnostics.navigationState(parameters as GetNavigationStateParameters);
+          case BROWSER_GET_PERFORMANCE_METRICS_ACTION:
+            return diagnostics.performanceMetrics(parameters as GetPerformanceMetricsParameters);
+          case BROWSER_GET_ACCESSIBILITY_TREE_ACTION:
+            return diagnostics.accessibilityTree(parameters as GetAccessibilityTreeParameters);
+          case BROWSER_COMPARE_SCREENSHOT_ACTION:
+            return diagnostics.compareScreenshot(parameters as CompareScreenshotParameters);
+          case BROWSER_DOWNLOAD_ACTION:
+            return downloads.start(parameters as StartDownloadParameters);
+          case BROWSER_WAIT_FOR_DOWNLOAD_ACTION:
+            return downloads.wait(parameters as WaitForDownloadParameters);
+          case BROWSER_LIST_WEBMCP_TOOLS_ACTION:
+            return webMcp.list(parameters as ListWebMcpToolsParameters);
+          case BROWSER_INVOKE_WEBMCP_TOOL_ACTION:
+            return webMcp.invoke(parameters as InvokeWebMcpToolParameters);
+          case BROWSER_CANCEL_WEBMCP_INVOCATION_ACTION:
+            return webMcp.cancel(parameters as CancelWebMcpInvocationParameters);
+          default:
+            throw new ExtensionCommandError(
+              IBP_ERROR_CODES.UNSUPPORTED_ACTION,
+              `Unsupported advanced browser action: ${action}`,
+              false,
+            );
+        }
+      });
+    },
   },
   (state) => indicator.setConnectionState(state),
 );
@@ -302,13 +382,17 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
       indicator.getPopupState(validRequestedTabId),
       tabs.hasGlobalPageAccess(),
       tabActivationSettings.getMode(),
+      chrome.tabs
+        .get(validRequestedTabId)
+        .then((tab) => domainPolicySettings.getForUrl(tab.url ?? "")),
     ])
-      .then(([control, globalPageAccess, activationMode]) =>
+      .then(([control, globalPageAccess, activationMode, domainPolicy]) =>
         sendResponse({
           ok: true,
           state: {
             tabId: validRequestedTabId,
             activationMode,
+            domainPolicy,
             globalPageAccess,
             control,
             console: browserConsole.state(validRequestedTabId),
@@ -316,6 +400,20 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
           },
         }),
       )
+      .catch(() => sendResponse({ ok: false }));
+    return true;
+  }
+
+  if (
+    record["command"] === "popup_set_domain_policy" &&
+    typeof record["hostname"] === "string" &&
+    ["allow_all", "observe_only", "safe_interaction", "trusted_admin", "block"].includes(
+      String(record["mode"]),
+    )
+  ) {
+    void domainPolicySettings
+      .set(record["hostname"], record["mode"] as DomainPolicyMode)
+      .then((domainPolicy) => sendResponse({ ok: true, domainPolicy }))
       .catch(() => sendResponse({ ok: false }));
     return true;
   }

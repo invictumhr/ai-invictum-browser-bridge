@@ -250,6 +250,30 @@ button:disabled {
   opacity: 0.6;
 }
 
+.select-label {
+  display: block;
+  margin-bottom: 6px;
+  color: #d4d4d8;
+  font-size: 10.5px;
+}
+
+select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #3b3d43;
+  border-radius: 8px;
+  background: #202228;
+  color: #f4f4f5;
+  font: inherit;
+  font-size: 11px;
+}
+
+.domain-save {
+  width: 100%;
+  margin-top: 8px;
+  border-color: #3b3d43;
+}
+
 :focus-visible {
   outline: 2px solid #86efac;
   outline-offset: 2px;

@@ -31,6 +31,16 @@ const requiredAdvancedActions = [
   "browser.page_api_request",
   "browser.print_to_pdf",
   "browser.set_control_identity",
+  "browser.list_frames",
+  "browser.get_navigation_state",
+  "browser.get_performance_metrics",
+  "browser.get_accessibility_tree",
+  "browser.download",
+  "browser.wait_for_download",
+  "browser.list_webmcp_tools",
+  "browser.invoke_webmcp_tool",
+  "browser.cancel_webmcp_invocation",
+  "browser.compare_screenshot",
 ] as const;
 
 const requiredAdvancedFeatures = [
@@ -62,6 +72,15 @@ const requiredAdvancedFeatures = [
   "trustedTerminalInput",
   "terminalBufferReadback",
   "terminalTransportReadback",
+  "durableOperationJournal",
+  "authenticatedControlApi",
+  "domainPolicies",
+  "frameInspection",
+  "navigationDiagnostics",
+  "performanceMetrics",
+  "accessibilityTree",
+  "managedDownloads",
+  "screenshotComparison",
 ] as const;
 
 afterEach(() => {
@@ -77,7 +96,7 @@ describe("extension capability contract", () => {
     const capabilities = getExtensionCapabilities();
     const actions = capabilities.actions.map(({ action }) => action);
 
-    expect(actions).toHaveLength(54);
+    expect(actions).toHaveLength(64);
     expect(new Set(actions).size).toBe(actions.length);
     expect(actions).toEqual(expect.arrayContaining([...requiredAdvancedActions]));
     expect(

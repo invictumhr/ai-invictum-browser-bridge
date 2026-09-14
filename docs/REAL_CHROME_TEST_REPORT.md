@@ -1,12 +1,51 @@
 # Real-Chrome and PageSpeed test report
 
 > Dated verification history. Counts inside individual runs describe the build
-> tested on that date. The current source gate expects 54 runtime actions and 61
-> MCP tools; runtime `system.capabilities` remains authoritative.
+> tested on that date. The current source gate expects 65 full-system actions
+> (64 extension actions plus Desktop Authority health) and 74 MCP tools;
+> runtime `system.capabilities` remains authoritative.
 
-Last updated: 2026-08-17 (Europe/Zagreb).
+Last updated: 2026-09-14 (Europe/Zagreb).
 
-The current prepared source adds bounded terminal-transport readback for WHM
+The 2026-09-14 extension was Reloaded and passed the complete persistent-chain
+gate. The loaded runtime includes authenticated local control, persistent
+sanitized audit, a crash-safe operation journal, per-hostname boundaries,
+managed downloads, frame/navigation/performance/AX diagnostics, hash-only
+visual traces, screenshot comparison, experimental page WebMCP feature
+detection, and Native Host recovery/soak testing. Historical sections below
+intentionally retain the behavior and counts observed in their dated runs.
+
+## Current loaded verification — 2026-09-14
+
+- `system.ping` completed the full
+  `Control API -> Desktop Authority -> Native Host -> extension` round trip.
+- `system.capabilities` returned exactly 65 full-system actions and the built
+  MCP server exposed exactly 74 tools.
+- `system.health_details` reported an authenticated Control API, connected
+  Native Host, enabled durable journal, enabled persistent audit, zero
+  uncertain operations, and no leaked tab/session reservations after cleanup.
+- An explicitly background tab remained inactive. A private sentinel page now
+  preserves exact `active:false` semantics even when Chrome must create a new
+  unfocused agent window; the sentinel is excluded from `list_tabs`.
+- The complete kitchen-sink smoke passed snapshots, form controls, upload,
+  model-backed editors, WordPress helpers, Shadow DOM, stale references,
+  history, page API, DOM/CSS/events, console/network, mobile emulation, PDF,
+  screenshots/annotations, authorized submit, `beforeunload`, and cleanup.
+- The hardening smoke observed 2 frames, `readyState:"complete"`, 36 Chrome
+  performance metrics, 87 sanitized accessibility nodes, a 669,200-pixel
+  screenshot comparison, available hash-only visual traces, and working WebMCP
+  feature detection. A managed 4 KiB download with an 8-byte limit was
+  interrupted, removed, and returned no local path.
+- The deterministic xterm smoke found one terminal, read it from
+  `xterm_buffer`, delivered trusted input without activating the tab, redacted
+  two secrets, and cleaned up normally.
+- A 100-iteration read-only soak completed with 3.0 ms minimum, 3.8 ms median,
+  5.6 ms p95, and 7.9 ms maximum local full-round-trip latency.
+- A direct audit spot-check found no fixture password, query secret, typed
+  terminal sentinel, Windows path, screenshot data URL, or control token in the
+  persistent JSONL audit.
+
+An earlier terminal-transport hardening stage added bounded readback for WHM
 builds that hide their xterm instance. During one authorized input action it
 observes WebSocket frames only on the target tab, selects a socket only when it
 uniquely carried the exact staged draft, never returns raw frames, redacts the
@@ -15,8 +54,8 @@ now requires `buffer_observed` or `transport_observed` draft proof before Enter;
 otherwise non-retryable `TERMINAL_DELIVERY_UNVERIFIED` withholds Enter and
 attempts to clear the staged line
 and sends no Enter. Focused protocol, transport, ambiguity, cleanup, redaction,
-and fail-closed unit tests pass. This source requires Reload before live WHM
-transport evidence is claimed.
+and fail-closed unit tests passed. Its subsequent loaded evidence is described
+in the dated WHM sections below.
 
 The reloaded extension also fixes a live-observed WHM focus race where trusted
 terminal text could be redirected into the global `Search Tools` field. Input
@@ -30,8 +69,9 @@ simultaneous viewport capture showed the global search field empty. Trusted
 `Ctrl+U` then cleared the draft, a final crop confirmed the clean prompt, and
 the disposable tab was unlocked and closed. No server command was executed.
 
-Current prepared source status: the build exposes exactly 54 runtime actions
-and 61 MCP tools. In addition to the previously real-Chrome-verified
+Current prepared source status: the build exposes 65 full-system actions (64
+extension actions plus Desktop Authority health) and 74 MCP tools. In addition
+to the previously real-Chrome-verified
 upload/WordPress/DOM/CSS/events/identity/settings/console/network/device/
 gesture/PDF/screenshot features, the source now includes clean page text,
 deterministic natural-language element discovery, non-activating back/forward
@@ -155,9 +195,15 @@ No test connected directly to the Native Messaging port. Every reserved tab was 
 
 - `health`: Desktop Authority reachable and `nativeConnected: true`.
 - `system.ping`: full extension round trip returned `pong`.
-- Loaded `system.capabilities` after the final 2026-07-23 Reload: exactly 30 unique actions.
-- Loaded feature flags include `localFileUpload`, `elementInspection`, `domMutation`, `cssInjection`, `eventCapture`, `browserConsole`, `deviceEmulation`, `rawJavaScript`, `customControlIdentity`, `configurableTabActivation`, compact/outline snapshots, safe previous-revision relocation, structured parameter errors, persistent host access, screenshots, coordinate fallback, auth/dialog support and User Stop.
-- Current source MCP stdio returns exactly 61 tools, including local upload,
+- Loaded `system.capabilities` after the 2026-09-14 Reload: exactly 65
+  full-system actions (64 extension actions plus Desktop Authority health).
+- Loaded feature flags include authenticated local control, durable journal,
+  persistent audit, domain modes, managed downloads, frame/navigation/
+  performance/accessibility diagnostics, WebMCP feature detection, screenshot
+  comparison, uploads, WordPress, terminal, advanced DOM/CSS/event tools,
+  console/network, device emulation, PDF, custom identity, background-tab
+  control, auth/dialog support and User Stop.
+- Current source MCP stdio returns exactly 74 tools, including local upload,
   custom control identity, clean text, natural-language find, history
   navigation, explicit activation, same-origin page API, batching, console and
   metadata-only network capture, device emulation, gestures, PDF export, and
@@ -233,8 +279,9 @@ The current source build contains the advanced DOM actions plus R0
 `browser.set_control_identity`, R0 `browser.console`, R0 `browser.network`, R1
 `browser.emulate_device`, R1 `browser.perform_gesture`, R0
 `browser.print_to_pdf`, clean text/find helpers, history/activation, and the R3
-same-origin page API. The built MCP server returns 61 tools and the extension
-reports 54 actions. A source-only change is not considered loaded real-Chrome
+same-origin page API. The built MCP server returns 74 tools and the extension
+reports 64 actions; Desktop Authority adds `system.health_details` for 65 total.
+A source-only change is not considered loaded real-Chrome
 evidence until the user Reloads the unpacked extension.
 
 Offline gates passed on the prepared DOM-parser build on 2026-07-23:
@@ -311,17 +358,17 @@ Exact compact JSON measurements are maintained in [SNAPSHOT_SIZE_BENCHMARK.md](S
 ## Automated gates
 
 - typecheck: 19/19 tasks passed;
-- unit tests: 175 passed, including clean-text/natural-find, same-origin API
-  origin/credential/redaction/WordPress nonce, navigation, gesture,
-  capabilities, protocol, policy, audit, SDK batch, and WordPress one-based
-  menu-position regression coverage;
-- emulated integration tests: 12 passed;
+- unit tests: 336 passed, including authentication, persistent audit, durable
+  idempotency, domain policy, managed-download enforcement, WebMCP, diagnostics,
+  exact background-tab behavior, terminal, WordPress, protocol, policy, and SDK
+  ergonomics coverage;
+- emulated integration tests: 17 passed;
 - lint: 19/19 tasks passed;
 - repository formatting: passed;
 - production build: 11/11 packages;
 - built extension contains all six new runtime action markers plus expanded
   gesture markers;
-- built MCP `tools/list` returned exactly 61 tools;
+- built MCP `tools/list` returned exactly 74 tools;
 - upload-specific real-Chrome confirmation: passed;
 - constrained evaluator, typed DOM mutation, HTML/CSS sanitization and delegated listener metadata: passed in real Chrome;
 - custom identity, final listener source, events, page-wide CSS, raw JavaScript and cleanup in real Chrome: passed.
@@ -338,9 +385,11 @@ pnpm browser health
 pnpm browser ping
 pnpm browser capabilities
 pnpm --filter @invictum/integration-tests smoke:chrome:kitchen-sink
+pnpm --filter @invictum/integration-tests smoke:chrome:hardening
 pnpm --filter @invictum/integration-tests smoke:chrome:agent-control
 pnpm --filter @invictum/integration-tests smoke:chrome:auth-dialog
 pnpm benchmark:snapshots
+pnpm test:soak -- 100
 ```
 
 After any future extension rebuild and Reload, use the single complete command:

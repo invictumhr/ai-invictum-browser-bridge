@@ -89,8 +89,11 @@ Mutating MCP tools accept:
 
 The local control API scopes the key to session, action, and tab. For two
 minutes it joins an in-flight duplicate or returns the same completed outcome.
-Reusing the same key with different parameters fails closed. Use one stable key
-for retries of one logical submit/publish/delete/upload/click operation; use a
+It also records a content-free hashed lifecycle in the durable operation
+journal. After the memory window or a process restart, completed, failed, pending, or
+crash-uncertain logical keys fail closed with `IDEMPOTENCY_REPLAY_BLOCKED`.
+Reusing the same key with different parameters always fails closed. Use one
+stable key for one logical submit/publish/delete/upload/click operation; use a
 new key for a different intended operation.
 
 If an R0/R1 action first fails with a stale element and the MCP adapter safely
@@ -115,7 +118,14 @@ pnpm browser call browser.submit_form --stdin --idempotency-key checkout-submit-
 ```
 
 Do not interpret idempotency as permission. Policy and authorization still run
-on the first execution.
+on the first execution. Do not bypass a blocked/unknown key with a new one:
+inspect authoritative page/server state and prove the original effect absent
+first.
+
+For the safest single-action workflow, use `invictum_transaction` (or SDK
+`transaction()` / CLI `transaction`). A non-idempotent action requires a key;
+the wrapper keeps dry run, verification, post-snapshot, DOM delta, timing, and
+visual evidence attached to the same logical operation.
 
 ## One-call post-action context
 
@@ -162,6 +172,12 @@ Add `"timings": true` to receive compact `baselineMs`, `actionMs`, `verifyMs`,
 `snapshotMs`, and `totalMs` diagnostics for the phases that ran. Timings are
 opt-in so normal results stay small.
 
+Add `"visualTrace": true` to capture bounded pre/post viewport screenshots
+internally and return only SHA-256 fingerprints, dimensions, byte lengths,
+timestamps, and a `changed` flag. Pixels are not returned or persisted. Use an
+explicit screenshot or `invictum_compare_screenshot` only when visual content
+or a diff image is actually required.
+
 The shared runner bounds state to 64 tabs and 2,000 semantic references per tab
 by default. A document change drops old references. `browser.unlock_tab`,
 `browser.close_tab`, `closeSession()`, `invictum_end_session`, and the matching
@@ -176,7 +192,8 @@ CLI example:
     --post-snapshot outline `
     --dom-delta `
     --verify '{"condition":{"type":"text","value":"Saved"}}' `
-    --timings
+    --timings `
+    --visual-trace
 ```
 
 SDK example:
@@ -191,6 +208,7 @@ const result = await client.enhancedCall("browser.click", {
   domDelta: true,
   verify: { condition: { type: "text", value: "Saved" } },
   timings: true,
+  visualTrace: true,
 });
 ```
 

@@ -23,6 +23,14 @@ function Test-LoopbackPortAvailable {
 
 function Invoke-BridgeCapabilities {
     param([hashtable]$Context)
+    $tokenPath = Join-Path $env:LOCALAPPDATA "InvictumBrowserBridge\control-token"
+    if (-not (Test-Path -LiteralPath $tokenPath)) {
+        throw "Desktop Authority control token is missing: $tokenPath"
+    }
+    $controlToken = (Get-Content -LiteralPath $tokenPath -Raw).Trim()
+    if ([string]::IsNullOrWhiteSpace($controlToken)) {
+        throw "Desktop Authority control token is empty"
+    }
     $request = @{
         action = "system.capabilities"
         parameters = @{}
@@ -32,6 +40,7 @@ function Invoke-BridgeCapabilities {
         -Uri "http://127.0.0.1:47820/v1/call" `
         -Method Post `
         -ContentType "application/json" `
+        -Headers @{ Authorization = "Bearer $controlToken" } `
         -Body $request `
         -TimeoutSec 15
 }
@@ -226,9 +235,20 @@ try {
         "browser.activate_tab",
         "browser.page_api_request",
         "browser.set_control_identity"
+        "system.health_details"
+        "browser.list_frames"
+        "browser.get_navigation_state"
+        "browser.get_performance_metrics"
+        "browser.get_accessibility_tree"
+        "browser.download"
+        "browser.wait_for_download"
+        "browser.list_webmcp_tools"
+        "browser.invoke_webmcp_tool"
+        "browser.cancel_webmcp_invocation"
+        "browser.compare_screenshot"
     )
     $missingActions = @($requiredActions | Where-Object { $actions -notcontains $_ })
-    if ($actions.Count -ne 54 -or $missingActions.Count -gt 0) {
+    if ($actions.Count -ne 65 -or $missingActions.Count -gt 0) {
         if (Restart-StaleProjectAuthority) {
             & pnpm browser ping | Out-Host
             if ($LASTEXITCODE -ne 0) {
@@ -238,8 +258,8 @@ try {
             $actions = @($capabilityResponse.data.actions.action)
             $missingActions = @($requiredActions | Where-Object { $actions -notcontains $_ })
         }
-        if ($actions.Count -ne 54 -or $missingActions.Count -gt 0) {
-            throw "Reloaded extension does not expose the expected 54 actions. Missing: $($missingActions -join ', ')"
+        if ($actions.Count -ne 65 -or $missingActions.Count -gt 0) {
+            throw "Reloaded system does not expose the expected 65 actions. Missing: $($missingActions -join ', ')"
         }
     }
     if ($capabilityResponse.data.features.localFileUpload -ne $true) {
@@ -254,7 +274,7 @@ try {
     if ($capabilityResponse.data.features.wordpressPostEditing -ne $true) {
         throw "Reloaded extension does not advertise wordpressPostEditing"
     }
-    foreach ($feature in @("elementInspection", "domMutation", "cssInjection", "eventCapture", "browserConsole", "networkCapture", "deviceEmulation", "advancedGestures", "pageText", "naturalLanguageFind", "historyNavigation", "explicitTabActivation", "sameOriginPageApi", "agentBatching", "pdfExport", "rawJavaScript", "terminalAutomation", "trustedTerminalInput", "terminalBufferReadback", "terminalTransportReadback")) {
+    foreach ($feature in @("elementInspection", "domMutation", "cssInjection", "eventCapture", "browserConsole", "networkCapture", "deviceEmulation", "advancedGestures", "pageText", "naturalLanguageFind", "historyNavigation", "explicitTabActivation", "sameOriginPageApi", "agentBatching", "pdfExport", "rawJavaScript", "terminalAutomation", "trustedTerminalInput", "terminalBufferReadback", "terminalTransportReadback", "durableOperationJournal", "authenticatedControlApi", "domainPolicies", "frameInspection", "navigationDiagnostics", "performanceMetrics", "accessibilityTree", "managedDownloads", "screenshotComparison")) {
         if ($capabilityResponse.data.features.$feature -ne $true) {
             throw "Reloaded extension does not advertise $feature"
         }
@@ -298,10 +318,23 @@ try {
         "invictum_execute_terminal",
         "invictum_send_terminal_key",
         "invictum_batch"
+        "invictum_health_details"
+        "invictum_list_frames"
+        "invictum_navigation_state"
+        "invictum_performance_metrics"
+        "invictum_accessibility_tree"
+        "invictum_accessibility_diff"
+        "invictum_download"
+        "invictum_wait_for_download"
+        "invictum_list_webmcp_tools"
+        "invictum_invoke_webmcp_tool"
+        "invictum_cancel_webmcp_invocation"
+        "invictum_compare_screenshot"
+        "invictum_transaction"
     )
     $missingMcpTools = @($requiredMcpTools | Where-Object { $mcpSource -notmatch [regex]::Escape("name: `"$_`"") })
-    if ($mcpToolMatches.Count -ne 61 -or $missingMcpTools.Count -gt 0) {
-        throw "Built MCP server does not expose the expected 61 tools. Missing: $($missingMcpTools -join ', ')"
+    if ($mcpToolMatches.Count -ne 74 -or $missingMcpTools.Count -gt 0) {
+        throw "Built MCP server does not expose the expected 74 tools. Missing: $($missingMcpTools -join ', ')"
     }
 
     $fixturePort = 47822
@@ -325,6 +358,15 @@ try {
             $fixtureReady = $terminalFixture.StatusCode -eq 200 -and
                 $terminalFixture.Content.Contains("xterm-helper-textarea") -and
                 $terminalFixture.Content.Contains("fixtureTerminal")
+            if ($fixtureReady) {
+                $downloadFixture = Invoke-WebRequest `
+                    -Uri "http://127.0.0.1:$fixturePort/download-test.txt" `
+                    -UseBasicParsing `
+                    -TimeoutSec 3
+                $fixtureReady = $downloadFixture.StatusCode -eq 200 -and
+                    $downloadFixture.RawContentLength -eq 4096 -and
+                    "$($downloadFixture.Headers['Content-Disposition'])".Contains("ibb-download-test.txt")
+            }
         }
     }
     catch {
@@ -364,6 +406,15 @@ try {
                     $fixtureReady = $terminalFixture.StatusCode -eq 200 -and
                         $terminalFixture.Content.Contains("xterm-helper-textarea") -and
                         $terminalFixture.Content.Contains("fixtureTerminal")
+                    if ($fixtureReady) {
+                        $downloadFixture = Invoke-WebRequest `
+                            -Uri "http://127.0.0.1:$fixturePort/download-test.txt" `
+                            -UseBasicParsing `
+                            -TimeoutSec 2
+                        $fixtureReady = $downloadFixture.StatusCode -eq 200 -and
+                            $downloadFixture.RawContentLength -eq 4096 -and
+                            "$($downloadFixture.Headers['Content-Disposition'])".Contains("ibb-download-test.txt")
+                    }
                 }
             }
             catch {
@@ -382,6 +433,10 @@ try {
     & pnpm --filter "@invictum/integration-tests" smoke:chrome:kitchen-sink
     if ($LASTEXITCODE -ne 0) {
         throw "Real-Chrome kitchen-sink smoke failed"
+    }
+    & pnpm --filter "@invictum/integration-tests" smoke:chrome:hardening
+    if ($LASTEXITCODE -ne 0) {
+        throw "Real-Chrome production-hardening smoke failed"
     }
     $env:INVICTUM_TERMINAL_FIXTURE_URL = "http://127.0.0.1:$fixturePort/xterm-terminal"
     & pnpm --filter "@invictum/integration-tests" smoke:chrome:terminal

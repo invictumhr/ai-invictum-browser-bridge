@@ -26,6 +26,10 @@ the loaded Chrome extension and the checkout may differ.
   confirmation, post-snapshots, DOM deltas, marks, and batches.
 - [Agent productivity actions](AGENT_PRODUCTIVITY_ACTIONS.md) — clean text,
   natural-language find, history, same-origin API, and batches.
+- [Production hardening and advanced diagnostics](PRODUCTION_HARDENING_AND_DIAGNOSTICS.md)
+  — authenticated control, durable journal/audit, domain boundaries, frame,
+  performance and accessibility diagnostics, downloads, WebMCP, visual diffs,
+  and resilience tests.
 
 ## Platform guides
 

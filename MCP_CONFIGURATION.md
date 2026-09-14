@@ -1,6 +1,6 @@
 # MCP configuration
 
-The built stdio MCP server is `apps/mcp/dist/index.js`. It is a thin client of the persistent Desktop Authority control API; it never connects directly to Chrome or port 47821. It automatically starts the built authority in a hidden process if `http://127.0.0.1:47820` is offline.
+The built stdio MCP server is `apps/mcp/dist/index.js`. It is a thin client of the authenticated persistent Desktop Authority control API; it never connects directly to Chrome or port 47821. It automatically starts the built authority in a hidden process if `http://127.0.0.1:47820` is offline and reads the per-user bearer token outside the repository.
 
 The server's MCP `initialize.instructions` and `invictum_ping` description
 declare `IBB`, `IBG`, `Invictum Browser Bridge`, and `Invictum Browser Gate` as
@@ -52,6 +52,8 @@ command, with this absolute argument:
 Optional environment variables:
 
 - `INVICTUM_CONTROL_URL` — default `http://127.0.0.1:47820`;
+- `INVICTUM_CONTROL_TOKEN` — optional managed override; normally omit it so the
+  client reads `%LOCALAPPDATA%\InvictumBrowserBridge\control-token`;
 - `INVICTUM_SESSION_ID` — stable unique ID per concurrent agent/task;
 - `INVICTUM_AGENT_ID` — audit-facing agent ID;
 - `INVICTUM_SESSION_AUTHORIZED=false` — intentionally fail closed.
@@ -80,7 +82,7 @@ claude mcp add --scope user invictum-browser -- $node (Join-Path $repository 'ap
 
 ## MCP tools
 
-The server exposes 61 tools for the complete runtime action set plus batching,
+The server exposes 74 tools for the complete runtime action set plus batching,
 session cleanup, and a forward-compatible escape hatch. It also exposes six
 MCP prompts for safe web work, login, form filling, WordPress editing, and
 bounded diagnostics, and authorized browser-terminal work. `invictum_call`
@@ -90,20 +92,23 @@ Purpose-built groups include typed WordPress wp-admin/editor/menu tools, five
 Figma document/layer/property/selection/health tools, six WHM/cPanel/xterm
 terminal tools, local upload, authentication/dialog helpers, screenshots and
 annotations, console/network/mobile/PDF diagnostics, and same-origin page API
-calls. Start with `invictum_capabilities`; do not infer support from a hardcoded
-tool count.
+calls. Production tools add health details, frames/navigation, aggregate
+performance, accessibility trees/diffs, managed downloads, visual comparison,
+experimental page WebMCP, and crash-safe transactions. Start with
+`invictum_ping`, `invictum_health_details`, and `invictum_capabilities`; do not
+infer support from a hardcoded tool count.
 
 Tool schemas include standard MCP read-only, destructive, idempotent, and
 open-world annotations. Mutating tools additionally support adapter-level
-`dryRun`, `idempotencyKey`, `postSnapshot`, `domDelta`, and `verify`. Screenshot
-supports `autoMarks`. R2/R3 authorization can use MCP elicitation when the
+`dryRun`, `idempotencyKey`, `postSnapshot`, `domDelta`, `verify`, `timings`, and
+`visualTrace`. Screenshot supports `autoMarks`. R2/R3 authorization can use MCP elicitation when the
 client advertises it; sensitive values are never elicited. Full contracts and
 examples are in
 [docs/MCP_AGENT_ERGONOMICS.md](docs/MCP_AGENT_ERGONOMICS.md).
 
 `invictum_authenticate_http` accepts credentials only when the user explicitly supplied or authorized them; they are forwarded ephemerally and never returned/audited. `invictum_handle_javascript_dialog` should normally include the click or navigation trigger that is expected to open the dialog, allowing the extension to arm CDP before the page blocks.
 
-Call `invictum_ping` and `invictum_capabilities` first. For `invictum_open_tab` and `invictum_navigate`, omit `active` so the user's persisted toolbar preference remains authoritative. Do not force `active: true` for visibility, screenshots, debugging, the reservation indicator, or convenience; background tabs support semantic actions and debugger screenshots. Use an explicit activation override only when the current task genuinely requires showing/focusing that tab for the user.
+Call `invictum_ping`, `invictum_health_details`, and `invictum_capabilities` first. For `invictum_open_tab` and `invictum_navigate`, omit `active` so the user's persisted toolbar preference remains authoritative. Do not force `active: true` for visibility, screenshots, debugging, the reservation indicator, or convenience; background tabs support semantic actions and debugger screenshots. Use an explicit activation override only when the current task genuinely requires showing/focusing that tab for the user.
 
 For runtime errors use `invictum_console` in the order `start` → tested action → `read` → `stop`. For responsive testing use `invictum_emulate_device set`, then a fresh snapshot/interactions/screenshot, then `reset`. Both work without activating the tab. Visible DevTools should remain closed because Chrome permits one debugger client per target.
 

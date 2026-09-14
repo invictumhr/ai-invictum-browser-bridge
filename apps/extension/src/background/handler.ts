@@ -71,6 +71,16 @@ import {
   BROWSER_TERMINAL_INPUT_ACTION,
   BROWSER_PRINT_TO_PDF_ACTION,
   BROWSER_PAGE_API_REQUEST_ACTION,
+  BROWSER_LIST_FRAMES_ACTION,
+  BROWSER_GET_NAVIGATION_STATE_ACTION,
+  BROWSER_GET_PERFORMANCE_METRICS_ACTION,
+  BROWSER_GET_ACCESSIBILITY_TREE_ACTION,
+  BROWSER_DOWNLOAD_ACTION,
+  BROWSER_WAIT_FOR_DOWNLOAD_ACTION,
+  BROWSER_LIST_WEBMCP_TOOLS_ACTION,
+  BROWSER_INVOKE_WEBMCP_TOOL_ACTION,
+  BROWSER_CANCEL_WEBMCP_INVOCATION_ACTION,
+  BROWSER_COMPARE_SCREENSHOT_ACTION,
   ClickElementDataSchema,
   ClickElementParametersSchema,
   createClickResponse,
@@ -113,6 +123,7 @@ import {
   createTerminalInputResponse,
   createPrintToPdfResponse,
   createPageApiResponse,
+  createRegisteredActionResponse,
   createPongResponse,
   createCapabilitiesResponse,
   createOpenTabResponse,
@@ -199,6 +210,15 @@ import {
   PrintToPdfParametersSchema,
   PageApiRequestDataSchema,
   PageApiRequestParametersSchema,
+  ListFramesDataSchema,
+  GetNavigationStateDataSchema,
+  GetPerformanceMetricsDataSchema,
+  GetAccessibilityTreeDataSchema,
+  ManagedDownloadDataSchema,
+  ListWebMcpToolsDataSchema,
+  InvokeWebMcpToolDataSchema,
+  CancelWebMcpInvocationDataSchema,
+  CompareScreenshotDataSchema,
   parseActionParameters,
   parseIbpEnvelope,
   resultValidationError,
@@ -272,6 +292,7 @@ import {
 import { ExtensionCommandError } from "./command-error.js";
 
 export interface ExtensionCommandDependencies {
+  authorizeAction: (action: string, parameters: unknown) => Promise<void>;
   getCapabilities: () => Promise<unknown> | unknown;
   listTabs: () => Promise<unknown>;
   openTab: (parameters: OpenTabParameters) => Promise<unknown>;
@@ -326,9 +347,11 @@ export interface ExtensionCommandDependencies {
   terminalInput: (parameters: TerminalInputParameters) => Promise<unknown>;
   printToPdf: (parameters: PrintToPdfParameters) => Promise<unknown>;
   pageApiRequest: (parameters: PageApiRequestParameters) => Promise<unknown>;
+  advancedAction: (action: string, parameters: unknown) => Promise<unknown>;
 }
 
 const unavailableBrowserCommands: ExtensionCommandDependencies = {
+  authorizeAction: () => Promise.resolve(),
   getCapabilities: () =>
     Promise.reject(
       new ExtensionCommandError(
@@ -683,6 +706,26 @@ const unavailableBrowserCommands: ExtensionCommandDependencies = {
         "Same-origin page API access is not configured",
       ),
     ),
+  advancedAction: () =>
+    Promise.reject(
+      new ExtensionCommandError(
+        IBP_ERROR_CODES.UNSUPPORTED_BROWSER_FEATURE,
+        "This advanced browser capability is not configured",
+      ),
+    ),
+};
+
+const advancedResultSchemas: Readonly<Record<string, { parse(value: unknown): unknown }>> = {
+  [BROWSER_LIST_FRAMES_ACTION]: ListFramesDataSchema,
+  [BROWSER_GET_NAVIGATION_STATE_ACTION]: GetNavigationStateDataSchema,
+  [BROWSER_GET_PERFORMANCE_METRICS_ACTION]: GetPerformanceMetricsDataSchema,
+  [BROWSER_GET_ACCESSIBILITY_TREE_ACTION]: GetAccessibilityTreeDataSchema,
+  [BROWSER_DOWNLOAD_ACTION]: ManagedDownloadDataSchema,
+  [BROWSER_WAIT_FOR_DOWNLOAD_ACTION]: ManagedDownloadDataSchema,
+  [BROWSER_LIST_WEBMCP_TOOLS_ACTION]: ListWebMcpToolsDataSchema,
+  [BROWSER_INVOKE_WEBMCP_TOOL_ACTION]: InvokeWebMcpToolDataSchema,
+  [BROWSER_CANCEL_WEBMCP_INVOCATION_ACTION]: CancelWebMcpInvocationDataSchema,
+  [BROWSER_COMPARE_SCREENSHOT_ACTION]: CompareScreenshotDataSchema,
 };
 
 export async function handleProtocolMessage(
@@ -703,6 +746,22 @@ export async function handleProtocolMessage(
         message: error.message,
         retryable: error.retryable,
         ...(error.details === undefined ? {} : { details: error.details }),
+      });
+    }
+    throw error;
+  }
+
+  try {
+    await (dependencies.authorizeAction ?? unavailableBrowserCommands.authorizeAction)(
+      envelope.payload.action,
+      envelope.payload.parameters,
+    );
+  } catch (error) {
+    if (error instanceof ExtensionCommandError) {
+      return createErrorResponse(envelope, {
+        code: error.code,
+        message: error.message,
+        retryable: error.retryable,
       });
     }
     throw error;
@@ -1450,6 +1509,18 @@ export async function handleProtocolMessage(
         )(parameters),
       );
       return createDeviceEmulationResponse(request, data, { startedAt });
+    }
+
+    const advancedSchema = advancedResultSchemas[envelope.payload.action];
+    if (advancedSchema !== undefined) {
+      const startedAt = new Date();
+      const data = advancedSchema.parse(
+        await (dependencies.advancedAction ?? unavailableBrowserCommands.advancedAction)(
+          envelope.payload.action,
+          envelope.payload.parameters,
+        ),
+      );
+      return createRegisteredActionResponse(envelope, data, { startedAt });
     }
   } catch (error) {
     if (error instanceof ExtensionCommandError) {

@@ -204,6 +204,7 @@ reported profile, snapshot viewport, and screenshot together.
 
 ```text
 ping
+health_details
 capabilities
 open_tab/navigate (omit active unless focus is genuinely required)
 set_control_identity (optional)
@@ -238,3 +239,14 @@ accept or paint background input may use the guide's single explicit foreground
 fallback. See
 [TERMINAL_AUTOMATION.md](TERMINAL_AUTOMATION.md) for the mandatory workflow,
 WHM guidance, schemas, limitations, and verification.
+
+## 8. Production diagnostics and managed browser state
+
+The Bridge also provides sanitized frame/navigation inspection, aggregate
+performance metrics, value-redacted accessibility trees and diffs, managed
+downloads, visual fingerprints and viewport comparison, and experimental page
+WebMCP. These surfaces have distinct R0/R2/R3 contracts and must not be treated
+as generic DevTools or download-history access. See
+[PRODUCTION_HARDENING_AND_DIAGNOSTICS.md](PRODUCTION_HARDENING_AND_DIAGNOSTICS.md)
+for the full workflow, privacy boundaries, CLI/MCP names, and restart/sleep
+testing.
