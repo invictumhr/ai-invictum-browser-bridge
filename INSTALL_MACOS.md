@@ -60,11 +60,16 @@ scripts/install-agent-discovery.sh
 
 The script installs the IBB/IBG trigger rule into `~/.claude/CLAUDE.md` and
 `~/.codex/AGENTS.md` and registers the `invictum-browser` MCP server for Claude
-Code (with the `claude` CLI when present, otherwise in `~/.claude.json`), the
-Claude desktop app (`claude_desktop_config.json`), Codex (when its CLI is
+Code (with the `claude` CLI when present, otherwise in `~/.claude.json`, which
+the Code tab of the Claude desktop app also reads), Codex (when its CLI is
 present) and Cursor. Unrelated MCP servers and settings are preserved, invalid
-JSON is never overwritten, and running it again changes nothing. Restart the
-Claude desktop app or start a new agent session afterwards.
+JSON is never overwritten, and running it again changes nothing. Start a new
+agent session afterwards.
+
+The chat side of the Claude desktop app keeps its MCP servers in
+`~/Library/Application Support/Claude/claude_desktop_config.json`, a file the
+app rewrites while it runs. To add the entry there too, quit the app and run
+`scripts/install-agent-discovery.sh --with-claude-desktop`.
 
 ## Verify
 

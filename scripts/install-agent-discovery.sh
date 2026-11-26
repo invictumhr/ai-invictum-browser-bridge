@@ -6,7 +6,7 @@ set -euo pipefail
 skip_codex=0
 skip_cursor=0
 skip_claude=0
-skip_claude_desktop=0
+with_claude_desktop=0
 skip_rules=0
 
 while [ $# -gt 0 ]; do
@@ -14,10 +14,10 @@ while [ $# -gt 0 ]; do
     --skip-codex) skip_codex=1 ;;
     --skip-cursor) skip_cursor=1 ;;
     --skip-claude) skip_claude=1 ;;
-    --skip-claude-desktop) skip_claude_desktop=1 ;;
     --skip-global-rules) skip_rules=1 ;;
+    --with-claude-desktop) with_claude_desktop=1 ;;
     -h | --help)
-      echo "Usage: scripts/install-agent-discovery.sh [--skip-codex] [--skip-cursor] [--skip-claude] [--skip-claude-desktop] [--skip-global-rules]"
+      echo "Usage: scripts/install-agent-discovery.sh [--skip-codex] [--skip-cursor] [--skip-claude] [--skip-global-rules] [--with-claude-desktop]"
       exit 0
       ;;
     *) echo "error: unknown argument: $1" >&2; exit 2 ;;
@@ -61,10 +61,17 @@ if [ "$skip_claude" -eq 0 ]; then
   fi
 fi
 
-if [ "$skip_claude_desktop" -eq 0 ] && [ "$(uname -s)" = "Darwin" ]; then
-  "$node_path" "$helper" mcp "$HOME/Library/Application Support/Claude/claude_desktop_config.json" \
-    invictum-browser "$node_path" "$mcp_entry"
-  note "Claude desktop MCP" "claude_desktop_config.json (restart the app to load it)"
+# The Claude desktop app keeps its own preferences in claude_desktop_config.json and
+# rewrites that file while it runs, so the chat-side MCP entry is opt-in: quit the app
+# first. The app's Code tab runs the Claude Code engine and already uses ~/.claude.json.
+if [ "$with_claude_desktop" -eq 1 ]; then
+  if [ "$(uname -s)" = "Darwin" ]; then
+    "$node_path" "$helper" mcp "$HOME/Library/Application Support/Claude/claude_desktop_config.json" \
+      invictum-browser "$node_path" "$mcp_entry"
+    note "Claude desktop MCP" "claude_desktop_config.json (start the app again to load it)"
+  else
+    note "Claude desktop MCP" "skipped: not macOS"
+  fi
 fi
 
 if [ "$skip_codex" -eq 0 ]; then
