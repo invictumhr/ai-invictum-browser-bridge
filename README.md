@@ -247,7 +247,10 @@ manual toolbar approval for every new HTTP(S) origin; Chrome policy and the
 Bridge's own authorization model still apply.
 
 Full instructions are in [INSTALL_WINDOWS.md](INSTALL_WINDOWS.md) and
-[EXTENSION_INSTALL.md](EXTENSION_INSTALL.md).
+[EXTENSION_INSTALL.md](EXTENSION_INSTALL.md). On macOS and Linux, follow
+[INSTALL_MACOS.md](INSTALL_MACOS.md): `scripts/register-native-host-dev.sh`
+derives the unpacked extension ID itself, and `scripts/install-agent-discovery.sh`
+configures the agents.
 
 ## Install with an AI agent on Windows
 

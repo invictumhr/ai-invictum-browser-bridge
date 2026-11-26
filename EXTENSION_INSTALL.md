@@ -21,6 +21,10 @@
    .\scripts\register-native-host-dev.ps1 -ExtensionId "PASTE_EXTENSION_ID"
    ```
 
+   On macOS and Linux run `scripts/register-native-host-dev.sh` instead (see
+   [INSTALL_MACOS.md](INSTALL_MACOS.md)); it can derive the ID from the
+   unpacked directory, or take `--extension-id PASTE_EXTENSION_ID`.
+
 5. Start the bridge with `pnpm browser ping`. The CLI or Chrome-launched Native Host automatically starts Desktop Authority if needed.
 6. Reload **Invictum Browser Controller** once on `chrome://extensions`.
 7. Open extension **Details** and verify **Site access / Pristup web-lokaciji** is **On all sites / Na svim web-lokacijama**.
