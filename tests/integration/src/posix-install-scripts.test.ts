@@ -213,7 +213,40 @@ describe.skipIf(posixOnly)("POSIX agent discovery", () => {
       "Claude",
       "claude_desktop_config.json",
     );
-    expect(existsSync(desktopConfig)).toBe(process.platform === "darwin");
+    // The Claude desktop app rewrites its own config while running: opt-in only.
+    expect(existsSync(desktopConfig)).toBe(false);
+  });
+
+  it("writes the Claude desktop entry only with --with-claude-desktop", () => {
+    const home = makeTemporaryDirectory();
+    const development = makeTemporaryDirectory();
+    const desktopDirectory = join(home, "Library", "Application Support", "Claude");
+    const desktopConfig = join(desktopDirectory, "claude_desktop_config.json");
+    mkdirSync(desktopDirectory, { recursive: true });
+    writeFileSync(desktopConfig, JSON.stringify({ preferences: { keep: true } }));
+
+    const result = run(
+      "install-agent-discovery.sh",
+      [
+        "--skip-global-rules",
+        "--skip-claude",
+        "--skip-codex",
+        "--skip-cursor",
+        "--with-claude-desktop",
+      ],
+      scriptEnvironment(home, development),
+    );
+    expect(result.stderr).toBe("");
+    expect(result.status).toBe(0);
+
+    const desktop = JSON.parse(readFileSync(desktopConfig, "utf8")) as {
+      preferences: Record<string, unknown>;
+      mcpServers?: Record<string, unknown>;
+    };
+    expect(desktop.preferences).toEqual({ keep: true });
+    expect(desktop.mcpServers?.["invictum-browser"] !== undefined).toBe(
+      process.platform === "darwin",
+    );
   });
 
   it("does not overwrite an invalid JSON configuration", () => {
@@ -224,7 +257,7 @@ describe.skipIf(posixOnly)("POSIX agent discovery", () => {
 
     const result = run(
       "install-agent-discovery.sh",
-      ["--skip-global-rules", "--skip-cursor", "--skip-claude-desktop"],
+      ["--skip-global-rules", "--skip-cursor"],
       scriptEnvironment(home, development),
     );
     expect(result.status).not.toBe(0);
